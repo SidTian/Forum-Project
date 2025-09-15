@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Main.qml</file>
+        <file>LoginDialog.qml</file>
+        <file>NewPostDialog.qml</file>
+        <file>PromptDialog.qml</file>
+    </qresource>
+</RCC>

@@ -1,3 +1,4 @@
+
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
@@ -10,46 +11,34 @@ ApplicationWindow {
     height: 600
     title: qsTr("Forum App")
 
-    property bool isLoggedIn: false // 默认未登录
+    property bool isLoggedIn: false
 
-    // 应用 Material 风格
-    Material.theme: Material.Light
-    Material.accent: Material.Blue
-
-    // 模拟数据模型
     ListModel {
         id: postModel
-        ListElement {
-            title: "Welcome to the Forum!"
-            author: "Admin"
-            content: "This is the first post."
-            timestamp: "2025-09-13 15:25"
-        }
-        ListElement {
-            title: "Qt is Awesome"
-            author: "User1"
-            content: "Let's discuss Qt development!"
-            timestamp: "2025-09-13 14:00"
-        }
+        ListElement { title: "Welcome to the Forum!"; author: "Admin"; content: "This is the first post."; timestamp: "2025-09-13 15:25" }
+        ListElement { title: "Qt is Awesome"; author: "User1"; content: "Let's discuss Qt development!"; timestamp: "2025-09-13 14:00" }
     }
 
-    // 实例化 LoginDialog
     LoginDialog {
         id: loginDialog
+        onAccepted: {
+            if (isLoginMode) {
+                isLoggedIn = true
+                console.log("User logged in")
+            }
+        }
     }
 
-    // 提示对话框
-    PromptDialog {
-        id: promptDialog
+    NewPostDialog {
+        id: newPostDialog
     }
 
     ColumnLayout {
         anchors.fill: parent
 
-        // 顶部导航栏
         ToolBar {
             Layout.fillWidth: true
-            Material.elevation: 4 // 添加阴影
+            Material.elevation: 4
 
             RowLayout {
                 anchors.fill: parent
@@ -61,39 +50,37 @@ ApplicationWindow {
                     font.bold: true
                 }
 
-                Item {
-                    Layout.fillWidth: true
-                } // 占位符
+                Item { Layout.fillWidth: true }
 
                 ToolButton {
                     text: qsTr("New Post")
-                    icon.source: "qrc:/icons/add.svg"
                     onClicked: {
                         if (isLoggedIn) {
                             newPostDialog.open()
                         } else {
-                            promptDialog.show(
-                                        qsTr("Login Required"), qsTr(
-                                            "You must log in to create a new post."),
-                                        function () {
-                                            loginDialog.open()
-                                        })
+                            globalPromptDialog.show(
+                                qsTr("Login Required"),
+                                qsTr("You must log in to create a new post."),
+                                function() { loginDialog.open() }
+                            )
                         }
                     }
                 }
 
                 ToolButton {
-                    text: qsTr("Login")
-                    icon.source: "qrc:/icons/login.svg" // 假设有图标资源
+                    text: isLoggedIn ? qsTr("Logout") : qsTr("Login")
                     onClicked: {
-                        loginDialog.isLoginMode = true // 确保打开时是登录模式
-                        loginDialog.open()
+                        if (isLoggedIn) {
+                            isLoggedIn = false
+                            console.log("User logged out")
+                        } else {
+                            loginDialog.open()
+                        }
                     }
                 }
             }
         }
 
-        // 帖子列表
         ListView {
             id: postList
             Layout.fillWidth: true
@@ -106,9 +93,9 @@ ApplicationWindow {
                 width: postList.width - 20
                 height: 120
                 anchors.horizontalCenter: parent.horizontalCenter
-                radius: 8 // 圆角
+                radius: 8
                 color: Material.background
-                Material.elevation: 2 // 卡片阴影效果
+                Material.elevation: 2
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -135,14 +122,6 @@ ApplicationWindow {
                         maximumLineCount: 2
                         elide: Text.ElideRight
                     }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onEntered: parent.Material.elevation = 4 // 鼠标悬停时增加阴影
-                    onExited: parent.Material.elevation = 2
-                    onClicked: console.log("Clicked post: " + title)
                 }
             }
         }

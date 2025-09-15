@@ -10,6 +10,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(appForum
     main.cpp
+    qml.qrc
 )
 
 qt_add_qml_module(appForum
@@ -20,6 +21,7 @@ qt_add_qml_module(appForum
         QML_FILES LoginDialog.qml
         QML_FILES NewPostDialog.qml
         QML_FILES PromptDialog.qml
+        RESOURCES qml.qrc
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
