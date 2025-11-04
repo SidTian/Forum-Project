@@ -5,43 +5,181 @@ import QtQuick.Layouts 1.15
 
 Dialog {
     id: newPostDialog
-    title: qsTr("New Post")
     modal: true
     standardButtons: Dialog.Ok | Dialog.Cancel
-    anchors.centerIn: parent
-    width: 400
+    anchors.centerIn: Overlay.overlay
+    parent: Overlay.overlay
+    width: 450
+    height: 350
 
-    ColumnLayout {
+
+    background: Rectangle {
+        color: Material.background
+        radius: 16
+        Material.elevation: 4
+    }
+
+    // 假设当前用户名（从登录状态获取，可动态绑定）
+    property string currentAuthor: "CurrentUser"
+
+    header: Rectangle {
+        color: Material.background
+        radius: 16
+        height: 80
         width: parent.width
+        Material.elevation: 2
 
-        TextField {
-            id: titleField
-            placeholderText: qsTr("Post Title")
-            Layout.fillWidth: true
-        }
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 8
 
-        TextArea {
-            id: contentField
-            placeholderText: qsTr("Post Content")
-            Layout.fillWidth: true
-            Layout.preferredHeight: 100
+
+            Rectangle {
+                color: "transparent"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 30
+
+                Label {
+                    text: qsTr("New Post")
+                    font.pixelSize: 20
+                    font.bold: true
+                    color: Material.primaryTextColor
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            Rectangle {
+                color: "transparent"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 20
+
+                Label {
+                    text: qsTr("Author: ") + currentAuthor
+                    font.pixelSize: 12
+                    color: Material.secondaryTextColor
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: currentAuthor !== ""
+                }
+            }
         }
     }
 
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 20
+        spacing: 15
+
+        TextField {
+            id: titleField
+            placeholderText: qsTr("Enter post title...")
+            Layout.fillWidth: true
+            Layout.preferredHeight: 50
+            font.pixelSize: 16
+            Material.accent: Material.Blue
+            background: Rectangle {
+                radius: 8
+                color: Material.background
+                Material.elevation: titleField.focus ? 4 : 1
+                border.color: titleField.focus ? Material.accent : Material.dividerColor
+                border.width: 1
+            }
+        }
+
+        // 内容输入
+        TextArea {
+            id: contentField
+            placeholderText: qsTr("Enter post content...")
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            font.pixelSize: 14
+            Material.accent: Material.Blue
+            wrapMode: TextArea.Wrap
+            padding: 10
+            topPadding: 12
+            background: Rectangle {
+                radius: 8
+                color: Material.background
+                Material.elevation: contentField.focus ? 4 : 1
+                border.color: contentField.focus ? Material.accent : Material.dividerColor
+                border.width: 1
+            }
+        }
+    }
+
+    footer: RowLayout {
+        spacing: 20
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Button {
+            text: qsTr("Cancel")
+            flat: true
+            Material.background: Material.Grey
+            onClicked: newPostDialog.reject()
+            Layout.preferredWidth: 100
+        }
+
+        Button {
+            text: qsTr("Post")
+            highlighted: true
+            Material.accent: Material.Blue
+            onClicked: newPostDialog.accept()
+            Layout.preferredWidth: 100
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+    }
+
+
     onAccepted: {
-        // 假设 postModel 是通过上下文属性传递的
+        if (titleField.text === "" || contentField.text === "") {
+            // 使用你的 PromptDialog 显示错误
+            promptDialog.show(qsTr("Validation Error"),
+                              qsTr("Title and content cannot be empty."), null)
+            return
+            // 阻止添加帖子
+        }
+
+        // 添加到 postModel（假设 postModel 通过上下文或信号传递）
         postModel.append({
-            title: titleField.text,
-            author: "CurrentUser", // 可动态设置为实际用户名
-            content: contentField.text,
-            timestamp: Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm")
-        })
+                             "title": titleField.text,
+                             "author": currentAuthor,
+                             "content": contentField.text,
+                             "timestamp": Qt.formatDateTime(new Date(),
+                                                            "yyyy-MM-dd hh:mm")
+                         })
+
+        // 清空输入并关闭
         titleField.text = ""
         contentField.text = ""
+        newPostDialog.close()
+
+        // 可选：添加成功提示
+        promptDialog.show(qsTr("Success"),
+                          qsTr("Post created successfully!"), null)
     }
 
     onRejected: {
         titleField.text = ""
         contentField.text = ""
+    }
+
+
+    onOpened: {
+        titleField.focus = true
+        console.log("NewPostDialog opened")
+    }
+
+
+    NumberAnimation on opacity {
+        from: 0
+        to: 1
+        duration: 200
+        easing.type: Easing.InOutQuad
     }
 }

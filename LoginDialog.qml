@@ -11,7 +11,7 @@ Dialog {
     anchors.centerIn: parent
     width: 300
 
-    property bool isLoginMode: true
+    property bool isLoginMode: true // 初始为登录模式
 
     ColumnLayout {
         width: parent.width
@@ -36,7 +36,16 @@ Dialog {
             placeholderText: qsTr("Confirm Password")
             Layout.fillWidth: true
             echoMode: TextInput.Password
-            visible: !isLoginMode
+            visible: !isLoginMode // 仅在注册模式显示
+        }
+
+        Label {
+            id: errorLabel
+            text: ""
+            color: Material.Red
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            visible: text !== ""
         }
 
         Button {
@@ -48,71 +57,28 @@ Dialog {
                 usernameField.text = ""
                 passwordField.text = ""
                 confirmPasswordField.text = ""
+                errorLabel.text = ""
             }
         }
     }
-
     onAccepted: {
+        errorLabel.text = ""
         if (isLoginMode) {
-            // 登录逻辑
-            console.log("Login attempted with username:", usernameField.text)
-            // 可添加登录API调用
+            loginManager.login(usernameField.text, passwordField.text)
+            // 清空字段
             usernameField.text = ""
             passwordField.text = ""
             confirmPasswordField.text = ""
         } else {
             // 注册逻辑
             if (passwordField.text !== confirmPasswordField.text) {
-                globalPromptDialog.show(
-                    qsTr("Error"),
-                    qsTr("Passwords do not match"),
-                    null
-                )
+                errorLabel.text = qsTr("Passwords do not match")
                 return
             }
             if (usernameField.text === "" || passwordField.text === "") {
-                globalPromptDialog.show(
-                    qsTr("Error"),
-                    qsTr("Username and password are required"),
-                    null
-                )
+                errorLabel.text = qsTr("Username and password are required")
                 return
             }
-
-            // 调用注册API
-            var xhr = new XMLHttpRequest()
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    if (xhr.status === 200 || xhr.status === 201) {
-                        // 注册成功
-                        console.log("Registration successful:", xhr.responseText)
-                        globalPromptDialog.show(
-                            qsTr("Success"),
-                            qsTr("Registration successful! Please login."),
-                            function() { isLoginMode = true }
-                        )
-                        usernameField.text = ""
-                        passwordField.text = ""
-                        confirmPasswordField.text = ""
-                    } else {
-                        // 注册失败
-                        console.log("Registration failed:", xhr.status, xhr.responseText)
-                        globalPromptDialog.show(
-                            qsTr("Error"),
-                            qsTr("Registration failed: ") + (xhr.responseText || "Unknown error"),
-                            null
-                        )
-                    }
-                }
-            }
-            xhr.open("POST", "http://localhost:3000/register")
-            xhr.setRequestHeader("Content-Type", "application/json")
-            var data = JSON.stringify({
-                username: usernameField.text,
-                password: passwordField.text
-            })
-            xhr.send(data)
-            return
         }
     }
 
@@ -120,5 +86,6 @@ Dialog {
         usernameField.text = ""
         passwordField.text = ""
         confirmPasswordField.text = ""
+        errorLabel.text = ""
     }
 }
