@@ -64,32 +64,10 @@ ApplicationWindow {
         }
     }
 
-    // 监听 C++ LoginManager 的信号（处理登录消息弹窗）
-        Connections {
-            target: loginManager
-            function onLoginSuccess(username, message) {
-                isLoggedIn = true
-                currentUser = username
-                console.log("Login successful, user:", username, "Message:", message)
-                // 在 main.qml 中显示登录消息弹窗
-                promptDialog.show(
-                    qsTr("Login Success"),
-                    qsTr("Welcome, ") + username + "! " + message,
-                    function() { loginDialog.close() }  // 关闭登录对话框
-                )
-            }
-
-            function onLoginError(errorMessage) {
-                isLoggedIn = false
-                console.log("Login error:", errorMessage)
-                // 在 main.qml 中显示错误弹窗
-                promptDialog.show(
-                    qsTr("Login Failed"),
-                    errorMessage,
-                    null
-                )
-            }
-        }
+    // 帖子数据模型
+    ListModel {
+        id: postModel
+    }
 
     LoginDialog {
         id: loginDialog
@@ -102,6 +80,99 @@ ApplicationWindow {
 
     NewPostDialog {
         id: newPostDialog
+    }
+
+    Connections {
+        target: loginDialog
+        function onLoginResponseReceived(response, isSuccess, message, username) {
+            if (isSuccess) {
+                // 登录成功：更新状态并显示弹窗
+                isLoggedIn = true
+                currentUser = username
+                console.log("Login successful, user:", username, "Message:", message)
+                promptDialog.show(
+                    qsTr("Login Success"),
+                    qsTr("Welcome, ") + username + "! " + message,
+                    function() { loginDialog.close() }  // 关闭登录对话框
+                )
+            } else {
+                // 登录失败：显示错误弹窗
+                isLoggedIn = false
+                console.log("Login error:", message)
+                promptDialog.show(
+                    qsTr("Login Failed"),
+                    message,
+                    null
+                )
+            }
+        }
+        function onRegisterResponseReceived(response, isSuccess, message, username) {
+                if (isSuccess) {
+                    // 注册成功：显示弹窗，并切换到登录模式
+                    console.log("Registration successful, username:", username, "Message:", message)
+                    promptDialog.show(
+                        qsTr("Register Success"),
+                        qsTr("Registration successful! ") + message + ". Please login with " + username + ".",
+                        function() {
+                            loginDialog.isLoginMode = true  // 切换到登录模式
+                            loginDialog.username = username // 预填用户名                            loginDialog.open()  // 重新打开登录对话框
+                        }
+                    )
+                } else {
+                    // 注册失败：显示错误弹窗
+                    console.log("Registration error:", message)
+                    promptDialog.show(
+                        qsTr("Register Failed"),
+                        message,
+                        null
+                    )
+                }
+            }
+
+    }
+
+    // 页面进入时发送网络请求获取数据
+    Component.onCompleted: {
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var posts = JSON.parse(xhr.responseText)
+                        postModel.clear() // 清空现有数据
+                        for (var i = 0; i < posts.length; i++) {
+                            postModel.append({
+                                                 "title": posts[i].title,
+                                                 "author": posts[i].author,
+                                                 "content": posts[i].content,
+                                                 "timestamp": posts[i].timestamp,
+                                                 "star": posts[i].star,
+                                                 "comments": posts[i].comments
+                                             })
+                        }
+                        console.log("Fetched", posts.length, "posts from API")
+                    } catch (e) {
+                        console.error("Failed to parse response:", e)
+                        promptDialog.show(
+                                    qsTr("Error"), qsTr(
+                                        "Failed to load posts: Invalid data format"),
+                                    null)
+                    }
+                } else {
+                    console.error("Failed to fetch posts:", xhr.status,
+                                  xhr.responseText)
+                    promptDialog.show(
+                                qsTr("Error"), qsTr(
+                                    "Failed to load posts: ") + (xhr.responseText
+                                                                 || "Network error"),
+                                null)
+                }
+            }
+        }
+        xhr.open("GET", "http://34.66.169.26:3000/get_forum_data")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.send()
+        console.log("Fetching forum data from API...")
     }
 
     StackView {
@@ -169,7 +240,7 @@ ApplicationWindow {
                                                             1.2)
                             onClicked: {
                                 // if (isLoggedIn) {
-                                if (1) {
+                                if (isLoggedIn) {
                                     newPostDialog.open()
                                 } else {
                                     promptDialog.show(
@@ -189,6 +260,9 @@ ApplicationWindow {
                             Material.background: Qt.lighter(Material.primary,
                                                             1.2)
                             onClicked: {
+                                loginDialog.username = ""
+                                loginDialog.password = ""
+                                loginDialog.confirmPassword = ""
                                 if (isLoggedIn) {
                                     isLoggedIn = false
                                 } else {
@@ -208,7 +282,6 @@ ApplicationWindow {
                 //     running: true
                 //     visible: true
                 // }
-
                 ListView {
                     id: postList
                     Layout.fillWidth: true
@@ -216,8 +289,8 @@ ApplicationWindow {
                     model: postModel
                     clip: true
                     spacing: 12 // 增加卡片间距
-                    // visible: false
 
+                    // visible: false
                     delegate: Rectangle {
                         width: postList.width
                         height: 140 // 增加高度以容纳新字段

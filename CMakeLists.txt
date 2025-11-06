@@ -10,8 +10,6 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(appForum
     main.cpp
-    PostModel.cpp
-    LoginManager.cpp
     qml.qrc
 )
 
@@ -26,10 +24,8 @@ qt_add_qml_module(appForum
         RESOURCES qml.qrc
         RESOURCES
         RESOURCES
-        SOURCES PostModel.h
-        SOURCES PostModel.cpp
-        SOURCES LoginManager.h
-        SOURCES LoginManager.cpp
+        SOURCES
+        SOURCES
 )
 
 qt_add_resources(appForum "qml"
