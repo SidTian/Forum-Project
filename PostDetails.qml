@@ -63,9 +63,8 @@ Page {
         // 内容布局：动态宽度 + 水平居中
         ColumnLayout {
             id: contentLayout
-            anchors.centerIn: parent  // 关键：水平和垂直居中
-            // anchors.verticalCenterOffset: 0  // 垂直居中偏移（可选调整）
-            width: Math.min(parent.width * 0.8, 1000)  // 动态宽度：窗口宽度的80%，最大1200，避免拉伸
+            anchors.centerIn: parent
+            width: Math.min(parent.width, 1000)  // 动态宽度：窗口宽度的80%，最大1200，避免拉伸
             spacing: 12
 
             // 顶部工具栏（返回按钮）
@@ -85,13 +84,6 @@ Page {
                         Material.foreground: "#FFFFFF"
                         onClicked: stackView.pop()
                     }
-
-                    // Label {
-                    //     text: qsTr("Post Details")
-                    //     font.pixelSize: 22
-                    //     font.bold: true
-                    //     color: "#FFFFFF"
-                    // }
 
                     Item { Layout.fillWidth: true }
                 }
@@ -235,6 +227,8 @@ Page {
                         font.pixelSize: 14
                         Material.accent: Material.Blue
                         wrapMode: TextArea.Wrap
+                        padding: 10
+                        topPadding: 12
                         background: Rectangle {
                             radius: 8
                             color: "#FFFFFF"

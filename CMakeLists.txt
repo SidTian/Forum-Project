@@ -35,6 +35,7 @@ qt_add_resources(appForum "qml"
         LoginDialog.qml
         NewPostDialog.qml
         PostDetails.qml
+        UserDetail.qml
 )
 
 set_source_files_properties(PromptDialog.qml PROPERTIES

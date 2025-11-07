@@ -4,5 +4,6 @@
         <file>LoginDialog.qml</file>
         <file>NewPostDialog.qml</file>
         <file>PostDetails.qml</file>
+        <file>UserDetail.qml</file>
     </qresource>
 </RCC>

@@ -17,10 +17,15 @@ ApplicationWindow {
     Material.accent: "#66B1FF" // 稍浅的蓝色，用于高亮
     Material.background: "#F5F7FA" // Element UI 浅灰背景
 
-    property string currentUsername: "CurrentUser"
+    property string currentUsername: ""
     property string currentUser: ""
     property bool isLoggedIn: false
+    property int selectedChannelId: 0 // 默认 channel ID
 
+    // Channel 数据模型
+    ListModel {
+        id: channelModel
+    }
     Dialog {
         id: promptDialog
         modal: true
@@ -89,57 +94,94 @@ ApplicationWindow {
                 // 登录成功：更新状态并显示弹窗
                 isLoggedIn = true
                 currentUser = username
-                console.log("Login successful, user:", username, "Message:", message)
-                promptDialog.show(
-                    qsTr("Login Success"),
-                    qsTr("Welcome, ") + username + "! " + message,
-                    function() { loginDialog.close() }  // 关闭登录对话框
-                )
+                console.log("Login successful, user:", username,
+                            "Message:", message)
+                promptDialog.show(qsTr("Login Success"), qsTr(
+                                      "Welcome, ") + username + "! " + message,
+                                  function () {
+                                      loginDialog.close()
+                                  } // 关闭登录对话框
+                                  )
             } else {
                 // 登录失败：显示错误弹窗
                 isLoggedIn = false
                 console.log("Login error:", message)
-                promptDialog.show(
-                    qsTr("Login Failed"),
-                    message,
-                    null
-                )
+                promptDialog.show(qsTr("Login Failed"), message, null)
             }
         }
         function onRegisterResponseReceived(response, isSuccess, message, username) {
-                if (isSuccess) {
-                    // 注册成功：显示弹窗，并切换到登录模式
-                    console.log("Registration successful, username:", username, "Message:", message)
-                    promptDialog.show(
-                        qsTr("Register Success"),
-                        qsTr("Registration successful! ") + message + ". Please login with " + username + ".",
-                        function() {
-                            loginDialog.isLoginMode = true  // 切换到登录模式
-                            loginDialog.username = username // 预填用户名                            loginDialog.open()  // 重新打开登录对话框
-                        }
-                    )
-                } else {
-                    // 注册失败：显示错误弹窗
-                    console.log("Registration error:", message)
-                    promptDialog.show(
-                        qsTr("Register Failed"),
-                        message,
-                        null
-                    )
-                }
+            if (isSuccess) {
+                // 注册成功：显示弹窗，并切换到登录模式
+                console.log("Registration successful, username:", username,
+                            "Message:", message)
+                promptDialog.show(qsTr("Register Success"),
+                                  qsTr("Registration successful! ") + message
+                                  + ". Please login with " + username + ".",
+                                  function () {
+                                      loginDialog.isLoginMode = true // 切换到登录模式
+                                      loginDialog.username = username // 预填用户名                            loginDialog.open()  // 重新打开登录对话框
+                                  })
+            } else {
+                // 注册失败：显示错误弹窗
+                console.log("Registration error:", message)
+                promptDialog.show(qsTr("Register Failed"), message, null)
             }
-
+        }
     }
 
     // 页面进入时发送网络请求获取数据
     Component.onCompleted: {
+        loadChannels()
+    }
+
+    // 加载 channels 函数
+    function loadChannels() {
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var channels = JSON.parse(xhr.responseText)
+                        channelModel.clear()
+                        for (var i = 0; i < channels.length; i++) {
+                            channelModel.append({
+                                                    "id": channels[i].id,
+                                                    "name": channels[i].name
+                                                })
+                        }
+                        if (channelModel.count > 0) {
+                            selectedChannelId = channelModel.get(
+                                        0).id // 默认选中第一个
+                            loadPosts(selectedChannelId)
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse channels:", e)
+                        promptDialog.show(qsTr("Error"),
+                                          qsTr("Failed to load channels"), null)
+                    }
+                } else {
+                    console.error("Failed to load channels:", xhr.status)
+                    promptDialog.show(
+                                qsTr("Error"),
+                                qsTr("Failed to load channels: Network error"),
+                                null)
+                }
+            }
+        }
+        xhr.open("GET", "http://34.66.169.26:3000/channels") // 假设 API 端点
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.send()
+    }
+
+    // 加载帖子函数（基于 channelId）
+    function loadPosts(channelId) {
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
                     try {
                         var posts = JSON.parse(xhr.responseText)
-                        postModel.clear() // 清空现有数据
+                        postModel.clear()
                         for (var i = 0; i < posts.length; i++) {
                             postModel.append({
                                                  "title": posts[i].title,
@@ -150,29 +192,24 @@ ApplicationWindow {
                                                  "comments": posts[i].comments
                                              })
                         }
-                        console.log("Fetched", posts.length, "posts from API")
                     } catch (e) {
-                        console.error("Failed to parse response:", e)
-                        promptDialog.show(
-                                    qsTr("Error"), qsTr(
-                                        "Failed to load posts: Invalid data format"),
-                                    null)
+                        console.error("Failed to parse posts:", e)
+                        promptDialog.show(qsTr("Error"),
+                                          qsTr("Failed to load posts"), null)
                     }
                 } else {
-                    console.error("Failed to fetch posts:", xhr.status,
-                                  xhr.responseText)
+                    console.error("Failed to load posts:", xhr.status)
                     promptDialog.show(
-                                qsTr("Error"), qsTr(
-                                    "Failed to load posts: ") + (xhr.responseText
-                                                                 || "Network error"),
+                                qsTr("Error"),
+                                qsTr("Failed to load posts: Network error"),
                                 null)
                 }
             }
         }
-        xhr.open("GET", "http://34.66.169.26:3000/get_forum_data")
+        var url = "http://34.66.169.26:3000/get_forum_data?channelId=" + channelId
+        xhr.open("GET", url)
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.send()
-        console.log("Fetching forum data from API...")
     }
 
     StackView {
@@ -230,6 +267,20 @@ ApplicationWindow {
 
                         Item {
                             Layout.fillWidth: true
+                        }
+
+                        ToolButton {
+                            text: qsTr("user detail")
+                            flat: true
+                            Material.foreground: "#FFFFFF"
+                            visible: isLoggedIn
+                            Material.background: Qt.lighter(Material.primary,
+                                                            1.2)
+                            onClicked: {
+                                stackView.push("qrc:/UserDetail.qml", {
+                                                   "currentUsername": currentUser
+                                               }) // 传递用户名
+                            }
                         }
 
                         ToolButton {
@@ -294,7 +345,7 @@ ApplicationWindow {
                     delegate: Rectangle {
                         width: postList.width
                         height: 140 // 增加高度以容纳新字段
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        // anchors.horizontalCenter: parent.horizontalCenter
                         radius: 10 // 更大圆角
                         Material.elevation: mouseArea.containsMouse ? 6 : 3 // 悬停时增加阴影
                         color: "#FFFFFF" // 白色卡片，与 Element UI 背景对比
@@ -401,25 +452,50 @@ ApplicationWindow {
                 }
             }
 
-            // 监听数据加载信号
-            // Connections {
-            //     target: postModel
-            //     function onDataLoaded(success) {
-            //         if (success) {
-            //             loadingIndicator.visible = false
-            //             loadingIndicator.running = false
-            //             postList.visible = true
-            //             console.log("Posts loaded successfully, showing ListView")
-            //         } else {
-            //             loadingIndicator.visible = false
-            //             promptDialog.show(
-            //                         qsTr("Error"), qsTr(
-            //                             "Failed to load posts. Showing fallback data."),
-            //                         null)
-            //             postList.visible = true // 显示回退数据
-            //         }
-            //     }
-            // }
+            // 左侧浮动 channels 列表
+            Rectangle {
+                id: channels
+                x: -100
+                y: parent.height / 2 - height / 2
+                width: 100 // 固定宽度
+                height: parent.height / 2
+                color: "#f0f0f0"
+                border.color: "#ccc"
+                border.width: 1
+                z: 1 // 确保浮动在主页面上方
+
+                // Channels ListView
+                ListView {
+                    id: channelList
+                    anchors.fill: parent
+                    model: channelModel
+                    spacing: 5
+                    clip: true
+
+                    delegate: Button {
+                        id: channelButton
+                        width: parent.width - 10
+                        height: 40
+                        text: model.name
+                        flat: true
+                        Material.background: model.id === selectedChannelId ? Material.primary : "transparent"
+                        Material.foreground: model.id === selectedChannelId ? "#FFFFFF" : Material.primaryTextColor
+                        font.pixelSize: 12 // 较小字体以适应宽度
+
+                        onClicked: {
+                            selectedChannelId = model.id
+                            loadPosts(selectedChannelId) // 调用加载帖子函数
+                        }
+                    }
+
+                    ScrollBar.vertical: ScrollBar {
+                        active: true
+                        width: 4
+                        background: Rectangle { color: "#ccc"; radius: 2 }
+                        contentItem: Rectangle { color: Material.primary; radius: 2 }
+                    }
+                }
+            }
         }
     }
 }
