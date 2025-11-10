@@ -13,6 +13,118 @@ Page {
     // 用户数据属性（从 API 获取）
     property string currentUsername: ""
     property string lastOnlineTime: ""
+    property bool isFollowing: false // 初始未关注
+
+    // 新函数：发送 follow/unfollow 请求
+    function followUser(followAction) {
+        var action = followAction ? "follow" : "unfollow"
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText)
+                        if (response.code === 1) {
+                            isFollowing = followAction // 更新状态
+                            promptDialog.show(
+                                qsTr(action.charAt(0).toUpperCase() + action.slice(1) + " Success"),
+                                response.message,
+                                null
+                            )
+                        } else {
+                            console.error(action + " failed:", response.message)
+                            promptDialog.show(
+                                qsTr(action.charAt(0).toUpperCase() + action.slice(1) + " Failed"),
+                                response.message,
+                                null
+                            )
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse response:", e)
+                        promptDialog.show(
+                            qsTr("Error"),
+                            qsTr("Invalid response format"),
+                            null
+                        )
+                    }
+                } else {
+                    console.error(action + " request failed:", xhr.status)
+                    promptDialog.show(
+                        qsTr(action.charAt(0).toUpperCase() + action.slice(1) + " Failed"),
+                        qsTr("Network error"),
+                        null
+                    )
+                }
+            }
+        }
+        var url = "http://sidtian.com:3000/" + action // 假设 unfollow 接口为 /unfollow
+        xhr.open("POST", url)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        var data = JSON.stringify({
+            username: currentUsername // 跟随的用户
+        })
+        xhr.send(data)
+        console.log("Sending " + action + " request for user:", currentUsername)
+    }
+
+    // 新函数：加载用户详情（POST 请求）
+    function loadUserDetails(targetUsername) {
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText)
+                        // 更新用户信息
+                        currentUsername = response.username || targetUsername
+                        lastOnlineTime = response.lastOnlineTime || "Unknown"
+                        isFollowing = response.isFollowing
+                        // 清空并填充帖子
+                        userPostsModel.clear()
+                        if (response.posts && response.posts.length > 0) {
+                            for (var i = 0; i < response.posts.length; i++) {
+                                userPostsModel.append({
+                                    "title": response.posts[i].title,
+                                    "author": response.posts[i].author,
+                                    "content": response.posts[i].content,
+                                    "timestamp": response.posts[i].timestamp,
+                                    "star": response.posts[i].star,
+                                    "comments": response.posts[i].comments
+                                })
+                            }
+                            console.log("Loaded", response.posts.length, "posts for user:", currentUsername)
+                        } else {
+                            console.log("No posts found for user:", currentUsername)
+                        }
+                        // 强制刷新 ListView
+                        userPostList.forceLayout()
+                    } catch (e) {
+                        console.error("Failed to parse user detail response:", e)
+                        promptDialog.show(
+                            qsTr("Error"), qsTr("Failed to load user details: Invalid data format"),
+                            null
+                        )
+                    }
+                } else {
+                    console.error("Failed to fetch user details:", xhr.status, xhr.responseText)
+                    promptDialog.show(
+                        qsTr("Error"), qsTr("Failed to load user details: ") + (xhr.responseText || "Network error"),
+                        null
+                    )
+                }
+            }
+        }
+        var url = "http://sidtian.com:3000/user_detail"
+        xhr.open("POST", url)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        var currentUserName = rootwindow.isLoggedIn ? rootwindow.currentUser : "" // 根据登录状态设置
+        var data = JSON.stringify({
+            currentUsername: currentUserName,
+            targetUsername: targetUsername
+        })
+        xhr.send(data)
+        console.log("Fetching user details from:", url, "Current user:", currentUserName, "Target:", targetUsername)
+    }
 
     // 用户帖子模型
     ListModel {
@@ -55,59 +167,7 @@ Page {
 
     // 页面进入时发送 GET 请求获取用户数据
     Component.onCompleted: {
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var response = JSON.parse(xhr.responseText)
-                        console.log("Raw response:", JSON.stringify(response)) // 调试：打印完整响应
-                        // 更新用户信息
-                        currentUsername = response.username || targetUsername
-                        lastOnlineTime = response.lastOnlineTime || "Unknown"
-
-                        // 清空并填充帖子
-                        userPostsModel.clear()
-                        if (response.posts && response.posts.length > 0) {
-                            for (var i = 0; i < response.posts.length; i++) {
-                                userPostsModel.append({
-                                    title: response.posts[i].title,
-                                    author: response.posts[i].author,
-                                    content: response.posts[i].content,
-                                    timestamp: response.posts[i].timestamp,
-                                    star: response.posts[i].star,
-                                    comments: response.posts[i].comments
-                                })
-                            }
-                            console.log("Loaded", response.posts.length, "posts for user:", currentUsername)
-                        } else {
-                            console.log("No posts found for user:", currentUsername)
-                        }
-                        // 强制刷新 ListView
-                        userPostList.forceLayout()
-                    } catch (e) {
-                        console.error("Failed to parse user detail response:", e)
-                        promptDialog.show(
-                            qsTr("Error"),
-                            qsTr("Failed to load user details: Invalid data format"),
-                            null
-                        )
-                    }
-                } else {
-                    console.error("Failed to fetch user details:", xhr.status, xhr.responseText)
-                    promptDialog.show(
-                        qsTr("Error"),
-                        qsTr("Failed to load user details: ") + (xhr.responseText || "Network error"),
-                        null
-                    )
-                }
-            }
-        }
-        var url = "http://34.66.169.26:3000/user_detail?username=" + targetUsername
-        xhr.open("GET", url)
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.send()
-        console.log("Fetching user details from:", url)
+        loadUserDetails(targetUsername)
     }
 
     // 根容器：顶部对齐，水平居中
@@ -147,15 +207,16 @@ Page {
                     //     font.bold: true
                     //     color: "#FFFFFF"
                     // }
-
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                    }
                 }
             }
 
             // 用户信息卡片
             Rectangle {
                 Layout.fillWidth: true
-                height: 120
+                height: 140 // 略增高度以容纳按钮
                 radius: 10
                 color: "#FFFFFF"
                 Material.elevation: 4
@@ -192,9 +253,47 @@ Page {
                         }
 
                         Label {
-                            text: qsTr("Stars: ") + getTotalStars() // 自定义函数计算总星数
+                            text: qsTr("Stars: ") + getTotalStars(
+                                      ) // 自定义函数计算总星数
                             font.pixelSize: 14
                             color: Material.primaryTextColor
+                        }
+                    }
+
+                    // Follow 按钮
+                    Button {
+                        id: followButton
+                        text: isFollowing ? qsTr("Unfollow") : qsTr("Follow") // 动态文本
+                        flat: true
+                        Material.accent: Material.Blue
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: 8
+
+                        // 自定义样式：圆角、蓝色背景、白色文字
+                        background: Rectangle {
+                            color: followButton.pressed ? Qt.darker(Material.primary, 1.1) : (followButton.hovered ? Qt.lighter(Material.primary, 1.1) : Material.primary)
+                            radius: 20 // 圆角
+                            border.width: 1
+                            border.color: Material.primary
+                        }
+
+                        contentItem: Text {
+                            text: followButton.text
+                            font.pixelSize: 14
+                            font.bold: true
+                            color: "#FFFFFF" // 白色文字
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        onClicked: {
+                            console.log("Follow button clicked for user:", currentUsername)
+                            if (isFollowing) {
+                                // Unfollow 逻辑（可选，发送不同请求）
+                                followUser(false) // 发送 unfollow 请求
+                            } else {
+                                followUser(true) // 发送 follow 请求
+                            }
                         }
                     }
                 }
@@ -225,7 +324,8 @@ Page {
             ListView {
                 id: userPostList
                 Layout.fillWidth: true
-                Layout.preferredHeight: userPostsModel.count > 0 ? contentHeight : 0  // 动态高度，避免空时占用空间
+                Layout.preferredHeight: userPostsModel.count
+                                        > 0 ? contentHeight : 0 // 动态高度，避免空时占用空间
                 model: userPostsModel
                 clip: true
                 spacing: 12
@@ -250,15 +350,15 @@ Page {
                         hoverEnabled: true
                         onClicked: {
                             stackView.push("qrc:/PostDetails.qml", {
-                                postData: {
-                                    title: model.title,
-                                    author: model.author,
-                                    content: model.content,
-                                    timestamp: model.timestamp,
-                                    star: model.star,
-                                    comments: model.comments
-                                }
-                            })
+                                               "postData": {
+                                                   "title": model.title,
+                                                   "author": model.author,
+                                                   "content": model.content,
+                                                   "timestamp": model.timestamp,
+                                                   "star": model.star,
+                                                   "comments": model.comments
+                                               }
+                                           })
                         }
                     }
 
@@ -315,7 +415,10 @@ Page {
                     }
 
                     Behavior on Material.elevation {
-                        NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+                        NumberAnimation {
+                            duration: 200
+                            easing.type: Easing.InOutQuad
+                        }
                     }
                 }
 
