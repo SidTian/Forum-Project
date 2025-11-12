@@ -26,6 +26,10 @@ qt_add_qml_module(appForum
         RESOURCES
         SOURCES
         SOURCES
+        QML_FILES
+        QML_FILES
+        QML_FILES
+        SOURCES httpmanager.h httpmanager.cpp
 )
 
 qt_add_resources(appForum "qml"

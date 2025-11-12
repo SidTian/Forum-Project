@@ -8,7 +8,7 @@ Page {
     Material.background: "#F5F7FA"
     height: 200
 
-    // 帖子数据属性（包括 postId）
+    // post data
     property var postData: ({
                                 "title": "",
                                 "author": "",
@@ -20,6 +20,7 @@ Page {
                             })
     property ListModel commentModel: ListModel {}
 
+    // prompt dialog
     Dialog {
         id: promptDialog
         modal: true
@@ -28,7 +29,6 @@ Page {
         width: 300
         parent: Overlay.overlay
 
-        // 属性定义在组件顶部，确保可见性
         property string promptTitle: qsTr("Prompt")
         property string promptText: qsTr("Please take an action.")
         property var onAcceptedCallback: null
@@ -39,7 +39,7 @@ Page {
             width: parent.width
 
             Label {
-                text: promptDialog.promptText // 使用 promptDialog. 前缀明确引用
+                text: promptDialog.promptText
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
@@ -65,6 +65,7 @@ Page {
         }
     }
 
+    // get message by post id
     function get_message() {
         if (!postData.postId) {
             promptDialog.show(qsTr("Error"), qsTr("Post ID is missing"), null)
@@ -123,6 +124,7 @@ Page {
         // console.log("Fetching messages for post ID:", postData.postId)
     }
 
+    // send message
     function send_message() {
         if (rootwindow.userId === "") {
             promptDialog.show(qsTr("Error"),
@@ -136,24 +138,24 @@ Page {
             return
         }
 
-        // 发送 POST 请求到 /message
+        // send POST request to /message
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             console.log("Response status:", xhr.status)
             if (xhr.readyState === XMLHttpRequest.DONE) {
-                console.log("Raw response:", xhr.responseText) // 调试：打印原始响应
+                // console.log("Raw response:", xhr.responseText)
                 if (xhr.status === 200) {
                     try {
                         var response = JSON.parse(xhr.responseText)
                         if (response.code === 1) {
                             // console.log("Message sent:", response.message)
-                            // 添加到本地列表
+                            // add to comment list model
                             commentModel.append({
                                                     "author": rootwindow.currentUser,
                                                     "content": commentField.text,
                                                     "timestamp": response.timestamp
                                                 })
-                            // 更新评论计数（动态计算）
+                            // update number of comment
                             postData.comments = commentModel.count
                             console.log(postData.comments)
                             commentField.text = ""
@@ -195,6 +197,8 @@ Page {
         console.log("Sending message for post ID:", postData.postId)
     }
 
+    // get info from single post by post id
+    // not in used
     function get_post() {
         if (!postData.postId) {
             promptDialog.show(qsTr("Error"), qsTr("Post ID is missing"), null)
@@ -209,7 +213,7 @@ Page {
                         var response = JSON.parse(xhr.responseText)
                         if (response && response.length > 0) {
 
-                            var post = response[0] // 假设返回数组，取第一个
+                            var post = response[0]
                             console.log(response)
                             postData.title = post.title
                             postData.timestamp = post.timestamp
@@ -244,29 +248,27 @@ Page {
         console.log("Fetching post data for ID:", postId)
     }
 
-    // 页面进入时发送 GET 请求到 /get_message 获取评论数据
+    // call get_message function when get in the page
     Component.onCompleted: {
         get_message()
     }
 
-    // 根容器：使用 Item 包裹 ColumnLayout，确保居中
     Item {
-        anchors.fill: parent // 填充整个 Page，但不冲突 StackView
+        anchors.fill: parent
 
-        // 内容布局：动态宽度 + 水平居中
         ColumnLayout {
             id: contentLayout
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top  // 垂直顶部对齐
-            width: Math.min(parent.width, 1000) // 动态宽度：窗口宽度的80%，最大1200，避免拉伸
+            anchors.top: parent.top
+            width: Math.min(parent.width, 1000)
             spacing: 12
 
-            // 顶部工具栏（返回按钮）
+            // top tool bar
             ToolBar {
                 Layout.fillWidth: true
                 Material.elevation: 4
                 background: Rectangle {
-                    color: Material.primary // #409EFF
+                    color: Material.primary
                     radius: 4
                 }
                 RowLayout {
@@ -282,17 +284,17 @@ Page {
                 }
             }
 
-            // 帖子内容（ScrollView）
+            // content in scroll view
             ScrollView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 200 // 固定帖子内容高度，避免扩展
+                Layout.preferredHeight: 200 // fixed height
                 clip: true
 
                 ColumnLayout {
-                    width: contentLayout.width - 40 // 内容宽度基于布局宽度，留边距
+                    width: contentLayout.width - 40
                     spacing: 12
 
-                    // 标题
+                    // title
                     Label {
                         text: postData.title
                         font.pixelSize: 24
@@ -302,7 +304,7 @@ Page {
                         wrapMode: Text.Wrap
                     }
 
-                    // 作者和时间
+                    // author and time
                     Label {
                         text: qsTr("By ") + postData.author + " | " + postData.timestamp
                         font.pixelSize: 14
@@ -310,7 +312,7 @@ Page {
                         Layout.fillWidth: true
                     }
 
-                    // 完整内容
+                    // content
                     Label {
                         text: postData.content
                         font.pixelSize: 16
@@ -319,7 +321,7 @@ Page {
                         wrapMode: Text.Wrap
                     }
 
-                    // Star 和 Comments
+                    // Star and Comments
                     RowLayout {
                         spacing: 16
                         Layout.fillWidth: true
@@ -349,7 +351,7 @@ Page {
                 }
             }
 
-            // 分隔线
+            // sapaerator line
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
@@ -357,7 +359,7 @@ Page {
                 visible: commentModel.count > 0 // 仅当有评论时显示
             }
 
-            // 评论标题
+            // comment
             Label {
                 text: qsTr("Messages (%1)").arg(commentModel.count)
                 font.pixelSize: 18
@@ -367,12 +369,12 @@ Page {
                 visible: commentModel.count > 0
             }
 
-            // 消息列表（评论列表） - 固定高度 ScrollView
+            // comment ScrollView
             ScrollView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 250 // 固定高度：评论区域高度
+                Layout.preferredHeight: 250
                 clip: true
-                visible: commentModel.count > 0 // 仅当有评论时显示
+                visible: commentModel.count > 0
 
                 ListView {
                     id: commentList
@@ -420,7 +422,7 @@ Page {
                 }
             }
 
-            // 消息输入框
+            // comment text area
             TextArea {
                 id: commentField
                 placeholderText: qsTr("Add a message...")
@@ -438,7 +440,7 @@ Page {
                 }
             }
 
-            // 提交消息按钮
+            // submit comment button
             Button {
                 text: qsTr("Send Message")
                 highlighted: true
@@ -451,7 +453,7 @@ Page {
         }
     }
 
-    // 页面进入动画（保持不变）
+    // animation page loading
     NumberAnimation on opacity {
         from: 0
         to: 1

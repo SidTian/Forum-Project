@@ -7,11 +7,11 @@ Dialog {
     id: loginDialog
     title: isLoginMode ? qsTr("Login") : qsTr("Register")
     modal: true
-    standardButtons: Dialog.NoButton // 移除标准按钮，使用自定义按钮
+    standardButtons: Dialog.NoButton // remove the standard dislog button
     anchors.centerIn: parent
     width: 300
 
-    property bool isLoginMode: true // 初始为登录模式
+    property bool isLoginMode: true // set login mode
     property alias username: usernameField.text
     property alias password: passwordField.text
     property alias email: emailField.text
@@ -20,7 +20,7 @@ Dialog {
     // login signal
     signal loginResponseReceived(variant response, bool isSuccess, string message)
 
-    // 注册响应信号
+    // register signal
     signal registerResponseReceived(variant response, bool isSuccess, string message, string username)
 
     ColumnLayout {
@@ -46,16 +46,18 @@ Dialog {
             placeholderText: qsTr("Confirm Password")
             Layout.fillWidth: true
             echoMode: TextInput.Password
-            visible: !isLoginMode // 仅在注册模式显示
+            visible: !isLoginMode // show in register mode
         }
 
         TextField {
             id: emailField
             placeholderText: qsTr("email address")
             Layout.fillWidth: true
-             visible: !isLoginMode
+             visible: !isLoginMode // show in register mode
         }
 
+
+        // error message
         Label {
             id: errorLabel
             text: ""
@@ -72,25 +74,24 @@ Dialog {
             flat: true
             onClicked: {
                 isLoginMode = !isLoginMode
-                usernameField.text = "sidtian"
-                passwordField.text = "20020606"
+                usernameField.text = ""
+                passwordField.text = ""
                 confirmPasswordField.text = ""
                 errorLabel.text = ""
             }
         }
 
-        // 自定义 Submit 按钮
+        // custom submit button
         Button {
             text: isLoginMode ? qsTr("Submit") : qsTr("Register")
             Layout.fillWidth: true
             highlighted: true
             Material.accent: Material.primary
             onClicked: {
-                // 手动验证和处理（不自动关闭对话框）
                 handleSubmit()
             }
         }
-
+        // custom cancel button
         Button {
             text: "cancel"
             Layout.fillWidth: true
@@ -102,15 +103,15 @@ Dialog {
         }
     }
 
-    // 自定义提交处理函数
+    // submit function
     function handleSubmit() {
         errorLabel.text = ""
         if (isLoginMode) {
-            // 登录逻辑
+            // login mode
             if (usernameField.text === "" || passwordField.text === "") {
                 errorLabel.text = qsTr("Username and password are required")
                 return
-                // 不发送请求，不关闭
+                // don't send request, don't close dialog
             }
 
             var xhr = new XMLHttpRequest()
@@ -118,19 +119,13 @@ Dialog {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
                     if (xhr.status === 200) {
                         try {
-
-                            // onLoginResponseReceived(response, isSuccess, message)
                             var response = JSON.parse(xhr.responseText)
-                            // for (let key in response)
-                                // if (response.hasOwnProperty(key))
-                                //     // 过滤继承属性
-                                //     console.log(`${key}: ${response[key]}`)
 
-
+                            // send signal to main page
                             loginDialog.loginResponseReceived(
                                         response, response.code === 1,
                                         response.message)
-                            successTimer.start() // 延迟关闭
+                            successTimer.start() // delay close
                         } catch (e) {
                             console.error("Failed to parse response:", e)
                             loginDialog.loginResponseReceived({
@@ -162,16 +157,16 @@ Dialog {
             console.log("Sending login request for username:",
                         usernameField.text)
         } else {
-            // 注册逻辑
+            // register mode (not done yet)
             if (passwordField.text !== confirmPasswordField.text) {
                 errorLabel.text = qsTr("Passwords do not match")
                 return
-                // 不发送请求，不关闭
+                // don't send request, don't close dialog
             }
             if (usernameField.text === "" || passwordField.text === "" || email === "") {
                 errorLabel.text = qsTr("incomplete field, please check")
                 return
-                // 不发送请求，不关闭
+                // don't send request, don't close dialog
             }
 
             var regXhr = new XMLHttpRequest()
@@ -180,14 +175,14 @@ Dialog {
                     if (regXhr.status === 200 || regXhr.status === 201) {
                         try {
                             var response = JSON.parse(regXhr.responseText)
-                            // 发出信号给 Main.qml 处理
+                            // send signal to Main.qml
                             loginDialog.registerResponseReceived(
                                         response, response.code === 1,
                                         response.message,
                                         response.username || usernameField.text)
                             console.log("Registration response received:",
                                         response)
-                            successTimer.start() // 延迟关闭
+                            successTimer.start() // delay close
                         } catch (e) {
                             console.error("Failed to parse response:", e)
                             loginDialog.registerResponseReceived(
@@ -216,16 +211,17 @@ Dialog {
         }
     }
 
-    // 定时器：显示成功消息后关闭对话框
+    // close dialog
     Timer {
         id: successTimer
-        interval: 1500 // 1.5 秒后关闭
+        interval: 1500 // after 1.5s close
         repeat: false
         onTriggered: {
             loginDialog.close()
         }
     }
 
+    // cancel function
     function handleCancel() {
         usernameField.text = ""
         passwordField.text = ""

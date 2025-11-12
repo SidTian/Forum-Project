@@ -2,33 +2,35 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import "qrc:/HttpClient.js" as HttpClient
 
 ApplicationWindow {
     id: rootwindow
     visible: true
     width: 800
     height: 600
-    maximumWidth: 2400 // 设置窗口最大宽度
-    minimumWidth: 600 // 可选：设置最小宽度
+    maximumWidth: 2400 // windows width
+    minimumWidth: 600
     title: qsTr("Forum App")
 
     Material.theme: Material.Light
-    Material.primary: "#409EFF" // Element UI 主色调（蓝色）
-    Material.accent: "#66B1FF" // 稍浅的蓝色，用于高亮
-    Material.background: "#F5F7FA" // Element UI 浅灰背景
+    Material.primary: "#409EFF"
+    Material.accent: "#66B1FF"
+    Material.background: "#F5F7FA"
 
-    property string currentUser: ""
-    property string userId: ""
-    property string userRole: "visitor"
+    property string currentUser: "" // username
+    property string userId: "" //user id
+    property string userRole: "visitor" // user role
     property bool isLoggedIn: false
-    property int selectedChannelId: 1 // 默认 channel ID
-    property bool isLocked: false // 帖子锁定状态，从 model 获取
+    property int selectedChannelId: 1 // channel id
 
-    // Channel 数据模型
+    property var http: HttpClient // create instance
+    // Channel data model
     ListModel {
         id: channelModel
     }
 
+    // prompt dialog
     Dialog {
         id: promptDialog
         modal: true
@@ -72,7 +74,7 @@ ApplicationWindow {
         }
     }
 
-    // 帖子数据模型
+    // post data model
     ListModel {
         id: postModel
     }
@@ -95,58 +97,73 @@ ApplicationWindow {
         function onLoginResponseReceived(response, isSuccess, message) {
             // console.log("isSuccess: " + isSuccess)
             if (isSuccess) {
-                // 登录成功：更新状态并显示弹窗
+                // print object
                 // for (let key in response)
-                //   if (response.hasOwnProperty(key))   // 过滤继承属性
+                //   if (response.hasOwnProperty(key))
                 //     console.log(`${key}: ${response[key]}`);
 
-
+                // set the property
                 isLoggedIn = true
                 currentUser = response.username
                 userRole = response.role
                 userId = response.userId
+
                 // console.log("Login successful, user:", username,
                 //             "Message:", message, ", userId: ",userId)
-                promptDialog.show(qsTr("Login Success"), qsTr(
-                                      "Welcome, ") + response.username + "! " + message,
-                                  function () {
-                                      loginDialog.close()
-                                  } // 关闭登录对话框
-                                  )
+
+                // show prompt dialog
+                promptDialog.show(
+                            qsTr("Login Success"), qsTr(
+                                "Welcome, ") + response.username + "! " + message,
+                            null)
+                // refresh the page
                 loadChannels()
             } else {
-                // 登录失败：显示错误弹窗
+                // login failed, alert
+                // have not done yet, based on response code, tell the user what's the problem
                 isLoggedIn = false
                 console.log("Login error:", message)
                 promptDialog.show(qsTr("Login Failed"), message, null)
             }
         }
+
         function onRegisterResponseReceived(response, isSuccess, message, username) {
             if (isSuccess) {
-                // 注册成功：显示弹窗，并切换到登录模式
+                // register success
                 console.log("Registration successful, username:", username,
                             "Message:", message)
                 promptDialog.show(qsTr("Register Success"),
                                   qsTr("Registration successful! ") + message
                                   + ". Please login with " + username + ".",
-                                  function () {
-                                      loginDialog.isLoginMode = true // 切换到登录模式
-                                      loginDialog.username = username // 预填用户名                            loginDialog.open()  // 重新打开登录对话框
+                                  () => {
+                                      loginDialog.isLoginMode = true // switch to login mode
+                                      loginDialog.open(
+                                          ) // reopen the login dialog
                                   })
             } else {
-                // 注册失败：显示错误弹窗
+                // Register Failed, show the alert
+                // have not done yet, based on response code, tell the user what's the problem
                 console.log("Registration error:", message)
                 promptDialog.show(qsTr("Register Failed"), message, null)
             }
         }
     }
 
-    // 页面进入时发送网络请求获取数据
     Component.onCompleted: {
         loadChannels()
+        // httpClientSetup()
     }
 
-    // 加载 channels 函数（优化版）
+    // function httpClientSetup() {
+    //     // console.log('QML http loaded: ', typeof http) // "object"
+    //     // console.log('QML get method: ', typeof http.get) // "function"！
+    //     // console.log('QML defaults: ', typeof http.defaults) // "object"
+
+    //     http.defaults.baseURL = "http://sidtian.com:3000"
+    //     // console.log('baseURL set: ', http.defaults.baseURL) // 正常
+    // }
+
+    // load channels function
     function loadChannels() {
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
@@ -163,9 +180,9 @@ ApplicationWindow {
                         }
                         if (channelModel.count > 0) {
                             // selectedChannelId = channelModel.get(
-                            //             0).id // 默认选中第一个
+                            //             0).id
                             selectedChannelId = 1
-                            loadPosts(selectedChannelId) // 重新加载帖子
+                            loadPosts(selectedChannelId) // reload the post
                         } else {
                             postModel.clear()
                         }
@@ -173,7 +190,7 @@ ApplicationWindow {
                         console.error("Failed to parse channels:", e)
                         promptDialog.show(qsTr("Error"),
                                           qsTr("Failed to load channels"), null)
-                        postModel.clear() // 清空帖子
+                        postModel.clear() // clear the post
                     }
                 } else {
                     console.error("Failed to load channels:", xhr.status,
@@ -186,12 +203,13 @@ ApplicationWindow {
                 }
             }
         }
-        xhr.open("GET", "http://sidtian.com:3000/channels") // 假设 API 端点
+        xhr.open("GET", "http://sidtian.com:3000/channels")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.send()
         // console.log("Fetching channels from API...")
     }
-    // 加载帖子函数（基于 channelId）
+
+    // load posts function (based on channelId)
     function loadPosts(channelId) {
         // loadingIndicator.running = true
         var xhr = new XMLHttpRequest()
@@ -217,10 +235,11 @@ ApplicationWindow {
                         // console.log("Loaded", posts.length,
                         //             "posts for channel", channelId)
                         if (userRole !== "admin") {
-                            // 逆序遍历以避免索引变化问题
+                            // if post is locked, don't show
                             for (var j = postModel.count - 1; j >= 0; j--) {
                                 if (postModel.get(j).isLocked) {
-                                    postModel.remove(j, 1) // 移除锁定帖子
+                                    postModel.remove(
+                                                j, 1) // remove the locked post
                                 }
                             }
                         }
@@ -243,7 +262,7 @@ ApplicationWindow {
         xhr.send()
         // console.log("Fetching posts for channel:", channelId)
     }
-    // 搜索函数（在 ApplicationWindow 或 mainPage 作用域中定义）
+    // search function (not done yet)
     function performSearch() {
         if (searchField.text === "") {
             promptDialog.show(qsTr("Search Error"),
@@ -257,7 +276,6 @@ ApplicationWindow {
                     try {
                         var response = JSON.parse(xhr.responseText)
                         postModel.clear()
-                        // 处理直接返回数组的情况（服务器 res.send(array) 会产生 JSON 数组）
                         var searchResults = []
                         if (Array.isArray(response)) {
                             searchResults = response
@@ -302,18 +320,17 @@ ApplicationWindow {
         var url = "http://sidtian.com:3000/search" // POST URL
         xhr.open("POST", url)
         xhr.setRequestHeader("Content-Type", "application/json")
-        // 发送查询作为 JSON body
+        // send query as JSON body
         xhr.send(JSON.stringify({
                                     "query": searchField.text
                                 }))
         console.log("Searching for:", searchField.text)
     }
-    // 定义函数：切换帖子锁定状态并发送请求
+    // switch post islock state (not done yet)
     function togglePostLock(postIndex, currentIsLocked, postId, currentUsername) {
-        // 乐观更新：立即切换状态
+        // optismic update
         postModel.setProperty(postIndex, "isLocked", !currentIsLocked)
 
-        // 发送 API 请求
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
@@ -323,29 +340,29 @@ ApplicationWindow {
                         if (response.code === 1) {
 
                             // console.log("Lock status updated:", response.message)
-                            // loadChannels() // 刷新频道和帖子
+                            // loadChannels() // refresh the channel and post
                         } else {
                             console.error("Lock update failed:",
                                           response.message)
-                            // 回滚状态
+                            // rollback if failed
                             postModel.setProperty(postIndex, "isLocked",
                                                   currentIsLocked)
                         }
                     } catch (e) {
                         console.error("Failed to parse lock response:", e)
-                        // 回滚状态
+                        // rollback if failed
                         postModel.setProperty(postIndex, "isLocked",
                                               currentIsLocked)
                     }
                 } else {
                     console.error("Lock request failed:", xhr.status)
-                    // 回滚状态
+                    // rollback if failed
                     postModel.setProperty(postIndex, "isLocked",
                                           currentIsLocked)
                 }
             }
         }
-        xhr.open("POST", "http://sidtian.com:3000/lock_post") // 假设锁定接口
+        xhr.open("POST", "http://sidtian.com:3000/lock_post")
         xhr.setRequestHeader("Content-Type", "application/json")
         var lockData = JSON.stringify({
                                           "postId": postId,
@@ -355,16 +372,15 @@ ApplicationWindow {
                                       })
         xhr.send(lockData)
     }
-    // 新增函数：加入选中频道
+    // join in channel (not done yet)
     function joinSelectedChannel() {
-        // 假设当前选中 channel，或动态获取
+        // identify selectedChannelId
         if (selectedChannelId === 0) {
             promptDialog.show(qsTr("Error"),
                               qsTr("Please select a channel first"), null)
             return
         }
 
-        // 发送加入频道请求
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
@@ -375,7 +391,6 @@ ApplicationWindow {
                             console.log("Joined channel:", response.message)
                             promptDialog.show(qsTr("Success"),
                                               response.message, null)
-                            // 可选：更新 UI 或刷新列表
                         } else {
                             console.error("Join failed:", response.message)
                             promptDialog.show(qsTr("Error"),
@@ -397,7 +412,7 @@ ApplicationWindow {
         var joinData = JSON.stringify({
                                           "username": currentUser || "",
                                           "userId": userId,
-                                          "channelId": selectedChannelId // 频道 ID
+                                          "channelId": selectedChannelId
                                       })
         xhr.send(joinData)
         console.log("Joining channel ID:", selectedChannelId)
@@ -429,7 +444,7 @@ ApplicationWindow {
         Rectangle {
             id: mainPage
             anchors.centerIn: parent
-            width: Math.min(parent.width, 1000) // 主页面内容最大宽度
+            width: Math.min(parent.width, 1000) //main page max width
             height: parent.height
             color: Material.background
 
@@ -442,8 +457,8 @@ ApplicationWindow {
                     Material.elevation: 4
                     z: 10
                     background: Rectangle {
-                        color: Material.primary // 使用 Element UI 蓝色
-                        radius: 4 // 轻微圆角
+                        color: Material.primary
+                        radius: 4
                     }
 
                     RowLayout {
@@ -453,19 +468,19 @@ ApplicationWindow {
 
                         Label {
                             text: qsTr("Forum")
-                            font.pixelSize: 22 // 更大字体
+                            font.pixelSize: 22
                             font.bold: true
-                            color: "#FFFFFF" // 白色文字，与蓝色背景对比
+                            color: "#FFFFFF"
                         }
 
                         Label {
                             text: userRole
-                            font.pixelSize: 14 // 更大字体
+                            font.pixelSize: 14
                             font.bold: true
-                            color: "#FFFFFF" // 白色文字，与蓝色背景对比
+                            color: "#FFFFFF"
                         }
 
-                        // 搜索框
+                        // search bar
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 5
@@ -483,15 +498,13 @@ ApplicationWindow {
                                     radius: 4
                                 }
                                 Keys.onReturnPressed: performSearch(
-                                                          ) // Enter 键搜索
+                                                          ) // press Enter for searching
                             }
 
                             Button {
                                 text: qsTr("Search")
                                 flat: true
                                 Material.foreground: "#FFFFFF"
-                                // Material.background: Qt.lighter(
-                                //                          Material.primary, 1.2)
                                 onClicked: performSearch()
                             }
                         }
@@ -504,21 +517,23 @@ ApplicationWindow {
                             Material.background: Qt.lighter(Material.primary,
                                                             1.2)
                             onClicked: {
+                                // switch to UserDetail page
+                                // pass current user id as parameter
                                 stackView.push("qrc:/UserDetail.qml", {
                                                    "currentUsername": currentUser,
                                                    "userId": userId
-                                               }) // 传递用户名
+                                               })
                             }
                         }
 
                         ToolButton {
                             text: qsTr("New Post")
                             flat: true
-                            Material.foreground: "#FFFFFF" // 白色文字
+                            Material.foreground: "#FFFFFF"
                             Material.background: Qt.lighter(Material.primary,
                                                             1.2)
                             onClicked: {
-                                // if (isLoggedIn) {
+                                // identify if user is log in
                                 if (isLoggedIn) {
                                     newPostDialog.open()
                                 } else {
@@ -542,16 +557,18 @@ ApplicationWindow {
                                 loginDialog.username = ""
                                 loginDialog.password = ""
                                 loginDialog.confirmPassword = ""
+                                // log out
                                 if (isLoggedIn) {
-                                    currentUser = "" // 清空用户
+                                    currentUser = "" // clear user state
                                     userRole = "visitor"
                                     userId = ""
-                                    selectedChannelId = 0 // 重置 channel ID
+                                    selectedChannelId = 0 // reset channel ID
                                     isLoggedIn = false
                                     loadChannels()
                                     postList.forceLayout()
                                     channelList.forceLayout()
                                 } else {
+                                    // log in
                                     loginDialog.open()
                                 }
                             }
@@ -565,56 +582,51 @@ ApplicationWindow {
                     Layout.fillHeight: true
                     model: postModel
                     clip: true
-                    spacing: 12 // 增加卡片间距
+                    spacing: 12
                     visible: !loadingIndicator.visible.running
 
-                    // visible: false
                     delegate: Rectangle {
                         width: postList.width
-                        height: 140 // 增加高度以容纳新字段
-                        // anchors.horizontalCenter: parent.horizontalCenter
-                        radius: 10 // 更大圆角
-                        Material.elevation: mouseArea.containsMouse ? 6 : 3 // 悬停时增加阴影
-                        // color: model.isLocked ? Material.Red : "#FFFFFF" // locked 时红色背景
-                        border.color: model.isLocked ? "#FF0000" : "#E0E0E0" // locked 时红色边框
-                        border.width: model.isLocked ? 2 : 1 // locked 时加粗边框
+                        height: 140
+                        radius: 10
+                        Material.elevation: mouseArea.containsMouse ? 6 : 3
+                        border.color: model.isLocked ? "#FF0000" : "#E0E0E0"
+                        border.width: model.isLocked ? 2 : 1
 
-                        // 鼠标交互
                         MouseArea {
                             id: mouseArea
                             anchors.fill: parent
                             hoverEnabled: true
                             onClicked: {
-                                console.log("Navigating to post:", title)
+                                // switch to PostDetails page with parameter
+                                // console.log("Navigating to post:", title)
                                 stackView.push("qrc:/PostDetails.qml", {
-                                    postData: {
-                                        title: model.title,
-                                        author: model.author,
-                                        content: model.content,
-                                        timestamp: model.timestamp,
-                                        star: model.star,
-                                        comments: model.comments,
-                                        postId: model.postId // 新增 postId
-                                    }
-                                })
+                                                   "postData": {
+                                                       "title": model.title,
+                                                       "author": model.author,
+                                                       "content": model.content,
+                                                       "timestamp": model.timestamp,
+                                                       "star": model.star,
+                                                       "comments": model.comments,
+                                                       "postId": model.postId
+                                                   }
+                                               })
                             }
                         }
 
-                        // 主布局
                         ColumnLayout {
                             anchors.fill: parent
-                            anchors.margins: 16 // 增加内边距
+                            anchors.margins: 16
                             spacing: 8
                             Material.accent: model.isLocked ? "#D32F2F" : Material.primaryTextColor // 锁定时红色
 
-                            // 标题 + Lock 按钮
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
 
                                 Label {
                                     text: model.title
-                                    font.pixelSize: 20 // 更大字体
+                                    font.pixelSize: 20
                                     font.bold: true
                                     color: Material.primaryTextColor
                                     Layout.fillWidth: true
@@ -623,26 +635,24 @@ ApplicationWindow {
                                     elide: Text.ElideRight
                                 }
 
-                                // Lock 按钮（仅 admin 可见）
+                                // Lock button (only admin can see it)
                                 Button {
                                     id: lockButton
                                     text: model.isLocked ? qsTr(
                                                                "Unlock") : qsTr(
                                                                "Lock")
                                     flat: true
-                                    Material.accent: Material.Red // 红色主题，突出锁定
-                                    visible: userRole === "admin" // 仅 admin 可见
+                                    Material.accent: Material.Red
+                                    visible: userRole === "admin"
 
                                     onClicked: {
-                                        togglePostLock(
-                                                    index, model.isLocked,
-                                                    model.postId,
-                                                    currentUser) // 传入 index 和 model 数据
+                                        togglePostLock(index, model.isLocked,
+                                                       model.postId,
+                                                       currentUser)
                                     }
                                 }
                             }
-
-                            // 作者和时间（始终可见）
+                            // author and time
                             Label {
                                 text: qsTr("By ") + model.author + " | " + model.timestamp
                                 font.pixelSize: 12
@@ -650,7 +660,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                             }
 
-                            // 内容（根据锁定状态和用户角色控制可见性）
+                            // content
                             Label {
                                 font.pixelSize: 14
                                 color: Material.primaryTextColor
@@ -658,30 +668,28 @@ ApplicationWindow {
                                 wrapMode: Text.Wrap
                                 maximumLineCount: 2
                                 elide: Text.ElideRight
-                                visible: true // 始终可见，但文本动态变化
                             }
 
-                            // Star 和 Comments（仅锁定时对 admin 显示，或始终显示）
+                            // Star and Comment
                             RowLayout {
                                 spacing: 16
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignLeft
 
                                 Label {
-                                    text: "★ " + model.star // 使用 Unicode 星号
+                                    text: "★ " + model.star
                                     font.pixelSize: 12
-                                    color: Material.accent // 使用主题高亮色
+                                    color: Material.accent
                                 }
 
                                 Label {
-                                    text: "💬 " + model.comments // 使用 Unicode 消息图标
+                                    text: "💬 " + model.comments
                                     font.pixelSize: 12
                                     color: Material.accent
                                 }
                             }
                         }
 
-                        // 悬停动画
                         Behavior on Material.elevation {
                             NumberAnimation {
                                 duration: 200
@@ -690,7 +698,6 @@ ApplicationWindow {
                         }
                     }
 
-                    // 滚动条美化
                     ScrollBar.vertical: ScrollBar {
                         active: true
                         width: 8
@@ -705,29 +712,29 @@ ApplicationWindow {
                     }
                 }
 
-                // 加载指示
+                // load indicator (not done yet)
                 BusyIndicator {
                     id: loadingIndicator
                     Layout.alignment: Qt.AlignCenter
                     Layout.preferredHeight: 50
                     Layout.preferredWidth: 50
-                    running: false // 初始停止
-                    visible: running // 初始隐藏
-                    z: 2 // 确保在上层
+                    running: false
+                    visible: running
+                    z: 2
                 }
             }
 
-            // 左侧浮动 channels 列表
+            // channels list
             Rectangle {
                 id: channels
                 x: -100
                 y: parent.height / 2 - height / 2
-                width: 100 // 固定宽度
+                width: 100
                 height: parent.height / 2
                 color: "#f0f0f0"
                 border.color: "#ccc"
                 border.width: 1
-                z: 1 // 确保浮动在主页面上方
+                z: 1
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -737,7 +744,7 @@ ApplicationWindow {
                     ListView {
                         id: channelList
                         Layout.fillWidth: true
-                        Layout.fillHeight: true // 占据剩余空间
+                        Layout.fillHeight: true
                         model: channelModel
                         spacing: 5
                         clip: true
@@ -749,23 +756,11 @@ ApplicationWindow {
                             flat: true
                             Material.background: model.id === selectedChannelId ? Material.primary : "transparent"
                             Material.foreground: model.id === selectedChannelId ? "#FFFFFF" : Material.primaryTextColor
-                            font.pixelSize: 12 // 较小字体以适应宽度
-
-                            // 这里可以进行channel修改
-                            // 自定义 contentItem 以支持省略号
-                            // contentItem: Text {
-                            //     text: parent.text
-                            //     font: parent.font
-                            //     color: parent.Material.foreground
-                            //     horizontalAlignment: Text.AlignHCenter
-                            //     verticalAlignment: Text.AlignVCenter
-                            //     elide: Text.ElideRight // 使用...省略过长文本
-                            //     maximumLineCount: 1 // 单行显示
-                            // }
+                            font.pixelSize: 12
 
                             onClicked: {
                                 selectedChannelId = model.id
-                                loadPosts(selectedChannelId) // 调用加载帖子函数
+                                loadPosts(selectedChannelId) // load post based on ChannelId
                             }
                         }
 
@@ -783,7 +778,7 @@ ApplicationWindow {
                         }
                     }
 
-                    // Join Channel 按钮（在 ListView 下面）
+                    // Join Channel button
                     Button {
                         id: joinChannelButton
                         text: qsTr("Join Channel")

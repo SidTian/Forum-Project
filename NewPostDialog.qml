@@ -75,7 +75,7 @@ Dialog {
                 border.width: 1
             }
         }
-        // 内容输入
+        // input content
         TextArea {
             id: contentField
             placeholderText: qsTr("Enter post content...")
@@ -120,14 +120,14 @@ Dialog {
     }
     onAccepted: {
         if (titleField.text === "" || contentField.text === "") {
-            // 使用你的 PromptDialog 显示错误
+            // use promptDialog to show the error
             promptDialog.show(qsTr("Validation Error"),
                               qsTr("Title and content cannot be empty."), null)
             return
-            // 阻止添加帖子
+            // stop to add comment
         }
 
-        // 发送 POST 请求到 /new_post
+        // send POST request to /new_post (not done yet)
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
@@ -135,14 +135,15 @@ Dialog {
                     try {
                         var response = JSON.parse(xhr.responseText)
                         if (response.code === 1) {
-                            console.log("Post created successfully:", response.message)
-                            // 清空输入并关闭
+                            // success
+                            // console.log("Post created successfully:", response.message)
+                            // clear input and close dialog
                             titleField.text = ""
                             contentField.text = ""
                             newPostDialog.close()
-                            // 成功提示
+                            // success prompt
                             promptDialog.show(qsTr("Success"), qsTr("Post created successfully! " + response.message), null)
-                            // 可选：重新加载帖子列表
+                            // reload the post
                             loadPosts(selectedChannelId)
                         } else {
                             console.error("Post creation failed:", response.message)
