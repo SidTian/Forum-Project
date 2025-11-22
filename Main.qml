@@ -2,8 +2,8 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
-import "qrc:/HttpClient.js" as HttpClient
 
+// import "qrc:/HttpClient.js" as HttpClient
 ApplicationWindow {
     id: rootwindow
     visible: true
@@ -24,7 +24,7 @@ ApplicationWindow {
     property bool isLoggedIn: false
     property int selectedChannelId: 1 // channel id
 
-    property var http: HttpClient // create instance
+    // property var http: HttpClient // create instance
     // Channel data model
     ListModel {
         id: channelModel
@@ -262,70 +262,84 @@ ApplicationWindow {
         xhr.send()
         // console.log("Fetching posts for channel:", channelId)
     }
-    // search function (not done yet)
+
+    // search function
     function performSearch() {
-        if (searchField.text === "") {
-            promptDialog.show(qsTr("Search Error"),
-                              qsTr("Please enter a search keyword."), null)
+        const keyword = searchField.text.trim()
+        if (keyword === "") {
+            promptDialog.show(qsTr("search alert"), qsTr("please give input keyword"), null)
             return
         }
+
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
                     try {
                         var response = JSON.parse(xhr.responseText)
-                        postModel.clear()
-                        var searchResults = []
+
+                        var posts = []
                         if (Array.isArray(response)) {
-                            searchResults = response
-                        } else {
-                            searchResults = response.results
-                                    || response.posts || []
+                            posts = response
+                        } else if (response.posts) {
+                            posts = response.posts
+                        } else if (response.results) {
+                            posts = response.results
                         }
-                        if (searchResults.length > 0) {
-                            for (var i = 0; i < searchResults.length; i++) {
-                                postModel.append({
-                                                     "title": searchResults[i].title,
-                                                     "author": searchResults[i].author,
-                                                     "content": searchResults[i].content,
-                                                     "timestamp": searchResults[i].timestamp,
-                                                     "star": searchResults[i].star,
-                                                     "comments": searchResults[i].comments,
-                                                     "channel": searchResults[i].channel
-                                                     || "General"
-                                                 })
+
+                        postModel.clear()
+
+                        if (posts.length === 0) {
+                            console.log("search no result:", keyword)
+                            promptDialog.show(qsTr("Search no result"), qsTr("didn't find post"), null)
+                            return
+                        }
+
+                        // fill the data
+                        for (var i = 0; i < posts.length; i++) {
+                            var p = posts[i]
+                            postModel.append({
+                                "postId": p.postId || 0,
+                                "title": p.highlightedTitle || p.title || qsTr("no title"),
+                                "author": p.author || "",
+                                "content": p.highlightedContent || p.content || "",
+                                "timestamp": p.timestamp || "",
+                                "star": parseInt(p.star) || 0,
+                                "comments": parseInt(p.comments) || 0,
+                                "isLocked": p.isLocked ,
+                                "channel": p.channel || "General"
+                            })
+                        }
+
+                        console.log("search :", posts.length, " result:", keyword)
+
+                        // lock the post
+                        if (userRole !== "admin") {
+                            for (var j = postModel.count - 1; j >= 0; j--) {
+                                if (postModel.get(j).isLocked) {
+                                    postModel.remove(j, 1)
+                                }
                             }
-                            console.log("Search found", searchResults.length,
-                                        "posts for:", searchField.text)
-                        } else {
-                            console.log("No results for:", searchField.text)
-                            postModel.clear()
                         }
+
                     } catch (e) {
-                        console.error("Failed to parse search response:", e)
-                        promptDialog.show(
-                                    qsTr("Search Error"),
-                                    qsTr("Failed to load search results."),
-                                    null)
+                        console.error("parse error:", e)
+                        promptDialog.show(qsTr("error"), qsTr("error in load result"), null)
                     }
                 } else {
-                    console.error("Search request failed:", xhr.status)
-                    promptDialog.show(qsTr("Search Error"),
-                                      qsTr("Failed to search: Network error"),
-                                      null)
+                    console.error("error:", xhr.status)
+                    promptDialog.show(qsTr("error"), qsTr("network error"), null)
                 }
             }
         }
-        var url = "http://sidtian.com:3000/search" // POST URL
-        xhr.open("POST", url)
+
+        xhr.open("POST", "http://sidtian.com:3000/search")
         xhr.setRequestHeader("Content-Type", "application/json")
-        // send query as JSON body
-        xhr.send(JSON.stringify({
-                                    "query": searchField.text
-                                }))
-        console.log("Searching for:", searchField.text)
+        xhr.send(JSON.stringify({ query: keyword }))
+
+        console.log("searching:", keyword)
     }
+
     // switch post islock state (not done yet)
     function togglePostLock(postIndex, currentIsLocked, postId, currentUsername) {
         // optismic update
@@ -372,7 +386,8 @@ ApplicationWindow {
                                       })
         xhr.send(lockData)
     }
-    // join in channel (not done yet)
+
+    // join in channel
     function joinSelectedChannel() {
         // identify selectedChannelId
         if (selectedChannelId === 0) {
@@ -519,9 +534,11 @@ ApplicationWindow {
                             onClicked: {
                                 // switch to UserDetail page
                                 // pass current user id as parameter
+                                // console.log("currentUsername ", currentUser)
+                                // console.log("userId ", userId)
                                 stackView.push("qrc:/UserDetail.qml", {
-                                                   "currentUsername": currentUser,
-                                                   "userId": userId
+                                                   "userId": userId,
+                                                   "targetUsername": currentUser
                                                })
                             }
                         }
@@ -790,7 +807,15 @@ ApplicationWindow {
                         width: parent.width - 10
 
                         onClicked: {
-                            joinSelectedChannel()
+                            if (isLoggedIn)
+                                joinSelectedChannel()
+                            else
+                                promptDialog.show(
+                                            qsTr("login required"),
+                                            "You must log in to create a new post.",
+                                            () => {
+                                                loginDialog.open()
+                                            })
                         }
                     }
                 }

@@ -74,9 +74,10 @@ Dialog {
             flat: true
             onClicked: {
                 isLoginMode = !isLoginMode
-                usernameField.text = ""
-                passwordField.text = ""
-                confirmPasswordField.text = ""
+                usernameField.text = "sidtian"
+                passwordField.text = "20020606"
+                confirmPasswordField.text = "20020606"
+                emailField.text = "test@test.test"
                 errorLabel.text = ""
             }
         }
@@ -88,7 +89,7 @@ Dialog {
             highlighted: true
             Material.accent: Material.primary
             onClicked: {
-                handleSubmit()
+                isLoginMode ? login() : register()
             }
         }
         // custom cancel button
@@ -104,7 +105,7 @@ Dialog {
     }
 
     // submit function
-    function handleSubmit() {
+    function login() {
         errorLabel.text = ""
         if (isLoginMode) {
             // login mode
@@ -209,6 +210,54 @@ Dialog {
             console.log("Sending registration request for username:",
                         usernameField.text)
         }
+    }
+
+    // register function
+    function register() {
+        errorLabel.text = ""
+        if (passwordField.text !== confirmPasswordField.text) {
+            errorLabel.text = qsTr("Passwords do not match")
+            return
+            // don't send request, don't close dialog
+        }
+        if (usernameField.text === "" || passwordField.text === "" || emailField.text === "") {
+            errorLabel.text = qsTr("Incomplete fields, please check")
+            return
+            // don't send request, don't close dialog
+        }
+        var regXhr = new XMLHttpRequest()
+        regXhr.onreadystatechange = function () {
+            if (regXhr.readyState === XMLHttpRequest.DONE) {
+                if (regXhr.status === 200 || regXhr.status === 201) {
+                    try {
+                        var response = JSON.parse(regXhr.responseText)
+                        // send signal to Main.qml
+                        loginDialog.registerResponseReceived(
+                                    response, response.code === 1,
+                                    response.message,
+                                    response.username || usernameField.text)
+                        console.log("Registration response received:",
+                                    response)
+                        successTimer.start() // delay close
+                    } catch (e) {
+                        console.error("Failed to parse response:", e)
+                        loginDialog.registerResponseReceived(
+                                    null, false,
+                                    "Invalid response format", "")
+                    }
+                }
+            }
+        }
+        regXhr.open("POST", "http://sidtian.com:3000/register")
+        regXhr.setRequestHeader("Content-Type", "application/json")
+        var regData = JSON.stringify({
+                                         "username": usernameField.text,
+                                         "password": passwordField.text,
+                                         "email": emailField.text
+                                     })
+        regXhr.send(regData)
+        console.log("Sending registration request for username:",
+                    usernameField.text)
     }
 
     // close dialog

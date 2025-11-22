@@ -8,126 +8,13 @@ Page {
     Material.background: "#F5F7FA"
 
     // stackView.push value
-    property string targetUsername: "Sid" // not done yet
+    property string targetUsername: ""
     property string userId: ""
 
     // user property, get from API
     property string currentUsername: ""
     property string lastOnlineTime: ""
     property bool isFollowing: false
-
-    // send follow/unfollow request (not done yet)
-    function followUser(followAction) {
-        var action = followAction ? "follow" : "unfollow"
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var response = JSON.parse(xhr.responseText)
-                        if (response.code === 1) {
-                            isFollowing = followAction
-                            promptDialog.show(qsTr(action.charAt(0).toUpperCase(
-                                                       ) + action.slice(
-                                                       1) + " Success"),
-                                              response.message, null)
-                        } else {
-                            console.error(action + " failed:", response.message)
-                            promptDialog.show(qsTr(action.charAt(0).toUpperCase(
-                                                       ) + action.slice(
-                                                       1) + " Failed"),
-                                              response.message, null)
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse response:", e)
-                        promptDialog.show(qsTr("Error"),
-                                          qsTr("Invalid response format"), null)
-                    }
-                } else {
-                    console.error(action + " request failed:", xhr.status)
-                    promptDialog.show(qsTr(action.charAt(0).toUpperCase(
-                                               ) + action.slice(
-                                               1) + " Failed"),
-                                      qsTr("Network error"), null)
-                }
-            }
-        }
-        var url = "http://sidtian.com:3000/" + action
-        xhr.open("POST", url)
-        xhr.setRequestHeader("Content-Type", "application/json")
-        var data = JSON.stringify({
-                                      "username": currentUsername,
-                                      "userId": userId
-                                  })
-        xhr.send(data)
-        console.log("Sending " + action + " request for user:", currentUsername)
-    }
-
-    // get user detail function
-    function loadUserDetails(targetUsername) {
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var response = JSON.parse(xhr.responseText)
-                        // update user info
-                        currentUsername = response.username || targetUsername
-                        lastOnlineTime = response.lastOnlineTime || "Unknown"
-                        isFollowing = response.isFollowing
-                        // clear post model
-                        userPostsModel.clear()
-                        // put new in
-                        if (response.posts && response.posts.length > 0) {
-                            for (var i = 0; i < response.posts.length; i++) {
-                                userPostsModel.append({
-                                                          "title": response.posts[i].title,
-                                                          "author": response.posts[i].author,
-                                                          "content": response.posts[i].content,
-                                                          "timestamp": response.posts[i].timestamp,
-                                                          "star": response.posts[i].star,
-                                                          "comments": response.posts[i].comments
-                                                      })
-                            }
-                            console.log("Loaded", response.posts.length,
-                                        "posts for user:", currentUsername)
-                        } else {
-                            console.log("No posts found for user:",
-                                        currentUsername)
-                        }
-                        // force refresh ListView
-                        userPostList.forceLayout()
-                    } catch (e) {
-                        console.error("Failed to parse user detail response:",
-                                      e)
-                        promptDialog.show(
-                                    qsTr("Error"), qsTr(
-                                        "Failed to load user details: Invalid data format"),
-                                    null)
-                    }
-                } else {
-                    console.error("Failed to fetch user details:", xhr.status,
-                                  xhr.responseText)
-                    promptDialog.show(
-                                qsTr("Error"), qsTr(
-                                    "Failed to load user details: ") + (xhr.responseText
-                                                                        || "Network error"),
-                                null)
-                }
-            }
-        }
-        var url = "http://sidtian.com:3000/user_detail"
-        xhr.open("POST", url)
-        xhr.setRequestHeader("Content-Type", "application/json")
-        var currentUserName = rootwindow.isLoggedIn ? rootwindow.currentUser : ""
-        var data = JSON.stringify({
-                                      "currentUsername": currentUserName,
-                                      "targetUsername": targetUsername
-                                  })
-        xhr.send(data)
-        console.log("Fetching user details from:", url, "Current user:",
-                    currentUserName, "Target:", targetUsername)
-    }
 
     // user post model
     ListModel {
@@ -142,24 +29,34 @@ Page {
         anchors.centerIn: Overlay.overlay
         width: 300
         parent: Overlay.overlay
+
         property string promptTitle: qsTr("Prompt")
         property string promptText: qsTr("Please take an action.")
         property var onAcceptedCallback: null
-        title: promptTitle
+
+        title: promptDialog.promptTitle
+
         ColumnLayout {
             width: parent.width
+
             Label {
-                text: promptText
+                text: promptDialog.promptText
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
             }
         }
+
+        onOpened: {
+
+        }
+
         onAccepted: {
             if (onAcceptedCallback) {
                 onAcceptedCallback()
             }
         }
+
         function show(title, text, callback) {
             promptTitle = title
             promptText = text
@@ -168,11 +65,173 @@ Page {
         }
     }
 
-    // get user detail when loading page
-    Component.onCompleted: {
-        loadUserDetails(targetUsername)
+    // 统一的关注/取消关注函数（超级好用！）
+    function toggleFollow(targetUsername) {
+        if (!rootwindow.isLoggedIn) {
+            promptDialog.show("login required", "Please login first", () => {})
+            return
+        }
+
+        // 乐观更新：先改 UI
+        const willFollow = !isFollowing
+        isFollowing = willFollow // 立即切换按钮状态
+
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText)
+                        if (response.code === 1) {
+                            // 成功！状态已经是对的，不需要再改
+                            isFollowing = response.isFollowing
+                            promptDialog.show(
+                                        qsTr(willFollow ? "Follow Success" : "Unfollow Success"),
+                                        response.message, null)
+                        } else {
+                            throw new Error(response.message)
+                        }
+                    } catch (e) {
+                        console.error("Follow request failed:", e)
+                        // 失败回滚
+                        isFollowing = !willFollow
+                        promptDialog.show(qsTr("Error"),
+                                          e.message || "Operation failed", null)
+                    }
+                } else {
+                    // 网络错误也回滚
+                    isFollowing = !willFollow
+                    promptDialog.show(qsTr("Error"), "Network error", null)
+                }
+            }
+        }
+
+        xhr.open("POST", "http://sidtian.com:3000/follow")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        var data = JSON.stringify({
+                                      "currentUserId": userId,
+                                      "targetUsername"// 必须传数字 ID
+                                      : targetUsername // 要关注/取消的人的用户名
+                                  })
+        xhr.send(data)
+
+        console.log("Toggling follow →", targetUsername, "will be:",
+                    willFollow ? "followed" : "unfollowed")
     }
 
+    // get user detail function（已完美适配最新后端）
+    function loadUserDetails(targetUsername) {
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText)
+
+                        // 后端现在一定返回 code === 1 才表示成功
+                        if (response.code !== 1) {
+                            throw new Error(response.message || "Unknown error")
+                        }
+
+                        // 更新用户信息
+                        currentUsername = response.username || targetUsername
+                        lastOnlineTime
+                                = response.lastOnlineTime ? formatTimestamp(
+                                                                response.lastOnlineTime) : "Unknown"
+                        isFollowing = !!response.isFollowing // 强制转为布尔值
+
+                        // 清空并重新填充帖子模型
+                        userPostsModel.clear()
+
+                        if (response.posts && Array.isArray(response.posts)
+                                && response.posts.length > 0) {
+                            for (var i = 0; i < response.posts.length; i++) {
+                                var p = response.posts[i]
+                                userPostsModel.append({
+                                                          "postId": p.postId,
+                                                          "title": p.title
+                                                                   || "",
+                                                          "author": p.author
+                                                                    || currentUsername,
+                                                          "content": p.content
+                                                                     || "",
+                                                          "timestamp": formatTimestamp(
+                                                                           p.timestamp),
+                                                          "star"// 统一格式化时间
+                                                          : p.star !== undefined ? p.star : 0,
+                                                          "comments": p.comments !== undefined ? p.comments : 0,
+                                                          "isLocked": p.isLocked
+                                                                      || false
+                                                      })
+                            }
+                            console.log("Loaded", response.posts.length,
+                                        "posts for user:", currentUsername)
+                        } else {
+                            console.log("No posts found for user:",
+                                        currentUsername)
+                        }
+
+                        // 强制刷新 ListView
+                        userPostList.forceLayout()
+                    } catch (e) {
+                        console.error(
+                                    "Failed to parse or process user detail response:",
+                                    e)
+                        promptDialog.show(
+                                    qsTr("Error"), qsTr(
+                                        "Failed to load user details: ") + (e.message
+                                                                            || "Invalid data"),
+                                    null)
+                    }
+                } else {
+                    // HTTP 非 200（比如 404 用户不存在、500 服务器错误）
+                    var errMsg = xhr.responseText ? JSON.parse(
+                                                        xhr.responseText).message : "Network error"
+                    console.error("Failed to fetch user details:",
+                                  xhr.status, errMsg)
+                    promptDialog.show(
+                                qsTr("Error"),
+                                qsTr("Failed to load user details: ") + errMsg,
+                                null)
+                }
+            }
+        }
+
+        var url = "http://sidtian.com:3000/user_detail"
+        xhr.open("POST", url)
+        xhr.setRequestHeader("Content-Type", "application/json")
+
+        var currentUserName = rootwindow.isLoggedIn ? rootwindow.currentUser : ""
+
+        var data = JSON.stringify({
+                                      "currentUsername": currentUserName,
+                                      "targetUsername": targetUsername
+                                  })
+
+        xhr.send(data)
+        console.log("Fetching user details → Target:", targetUsername,
+                    "Current:", currentUserName)
+    }
+
+    // 可选：统一时间格式化函数（推荐放在全局或这个文件顶部）
+    function formatTimestamp(mysqlTimestamp) {
+        if (!mysqlTimestamp)
+            return "Unknown"
+        // mysqlTimestamp 可能是 "2025-11-21 19:09:52" 或 "2025-11-21T19:09:52.000Z"
+        var dt = new Date(mysqlTimestamp.replace(' ', 'T')) // 兼容两种格式
+        if (isNaN(dt.getTime()))
+            return mysqlTimestamp
+        return Qt.formatDateTime(dt, "yyyy-MM-dd hh:mm:ss")
+    }
+
+    // get user detail when loading page
+    Component.onCompleted: {
+        // targetUsername = "admin"
+        // console.log("currentUsername ", currentUsername)
+        // console.log("targetUsername ", targetUsername)
+        // console.log("userId ", userId)
+        loadUserDetails(targetUsername)
+    }
 
     Item {
         anchors.top: parent.top
@@ -250,8 +309,7 @@ Page {
                         }
 
                         Label {
-                            text: qsTr("Stars: ") + getTotalStars(
-                                      )
+                            text: qsTr("Stars: ") + getTotalStars()
                             font.pixelSize: 14
                             color: Material.primaryTextColor
                         }
@@ -286,13 +344,9 @@ Page {
                         }
 
                         onClicked: {
-                            console.log("Follow button clicked for user:",
-                                        currentUsername)
-                            if (isFollowing) {
-                                followUser(false) // send unfollow request
-                            } else {
-                                followUser(true) // send follow request
-                            }
+                            // console.log("Follow button clicked for user:",
+                            //             targetUsername)
+                            toggleFollow(targetUsername)
                         }
                     }
                 }
@@ -323,13 +377,11 @@ Page {
             ListView {
                 id: userPostList
                 Layout.fillWidth: true
-                Layout.preferredHeight: userPostsModel.count
-                                        > 0 ? contentHeight : 0
+                Layout.preferredHeight: userPostsModel.count > 0 ? contentHeight : 0
                 model: userPostsModel
                 clip: true
                 spacing: 12
                 visible: userPostsModel.count > 0
-
 
                 onModelChanged: {
                     forceLayout()
@@ -348,6 +400,7 @@ Page {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
+                            // console.log("model.postId:",model.postId)
                             stackView.push("qrc:/PostDetails.qml", {
                                                "postData": {
                                                    "title": model.title,
@@ -355,7 +408,8 @@ Page {
                                                    "content": model.content,
                                                    "timestamp": model.timestamp,
                                                    "star": model.star,
-                                                   "comments": model.comments
+                                                   "comments": model.comments,
+                                                   "postId": model.postId
                                                }
                                            })
                         }
@@ -445,7 +499,6 @@ Page {
         }
         return total
     }
-
 
     NumberAnimation on opacity {
         from: 0

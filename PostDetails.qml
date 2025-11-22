@@ -19,7 +19,7 @@ Page {
                                 "postId": ""
                             })
     property ListModel commentModel: ListModel {}
-
+    property bool isStarred: false
     // prompt dialog
     Dialog {
         id: promptDialog
@@ -89,7 +89,9 @@ Page {
                                                         || "Anonymous",
                                                         "content": response.messages[i].message,
                                                         "timestamp": response.messages[i].timestamp
-                                                        || "Unknown"
+                                                        || "Unknown",
+                                                        "userId": response.messages[i].userId
+                                                        || 0
                                                     })
                             }
                             // console.log("Loaded", response.messages.length,
@@ -248,9 +250,97 @@ Page {
         console.log("Fetching post data for ID:", postId)
     }
 
+    function loadPostDetails(postId) {
+        if (!postId) {
+            console.error("loadPostDetails: postId 为空！");
+            return;
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                console.log("xhr.status:", xhr.status)
+                if (xhr.status === 200) {
+                    try {
+                        var res = JSON.parse(xhr.responseText);
+                        if (res.code === 1 && res.post) {
+                            // 完全替换 postData
+                            postData = {
+                                title: res.post.title || "",
+                                author: res.post.author || "Anonymous",
+                                content: res.post.content || "",
+                                timestamp: res.post.timestamp || "",
+                                star: res.post.star || 0,
+                                comments: res.post.comments || 0,
+                                postId: res.post.postId,
+                                isLocked: res.post.isLocked || false
+                            };
+
+                            // 关键！同步按钮状态
+                            isStarred = !!res.post.isStarred;
+
+                            console.log("帖子详情加载成功，当前是否已赞:", isStarred, "star数:", postData.star);
+                        }
+                    } catch (e) {
+                        console.error("解析帖子详情失败:", e);
+                    }
+                } else {
+                    console.error("加载帖子失败:", xhr.status);
+                }
+            }
+        };
+
+        var url = "http://sidtian.com:3000/get_post_detail";
+        xhr.open("GET", url + "?postId=" + postId + "&userId=" + (rootwindow.userId || 0));
+        xhr.send();
+    }
+
+    // star post
+    function starPost(postData) {
+        if (!postData || !postData.postId) {
+            console.error("starPost error：postData or postId is empty！", postData)
+            return
+        }
+
+        const oldStarred = isStarred
+        isStarred = !isStarred
+
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var res = JSON.parse(xhr.responseText)
+                        if (res.code === 1) {
+                            isStarred = res.isStarred ?? !oldStarred
+                            // reload the post
+                            loadPostDetails(postData.postId)
+                        }
+                    } catch (e) {
+                        console.error("Star response error:", e)
+                        isStarred = oldStarred
+                    }
+                } else {
+                    isStarred = oldStarred
+                    promptDialog.show(qsTr("Error"), qsTr("network error"), null)
+                }
+            }
+        }
+
+        xhr.open("POST", "http://sidtian.com:3000/star_post")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.send(JSON.stringify({
+                                    "userId": rootwindow.userId,
+                                    "postId": postData.postId
+                                }))
+
+        // console.log("send request:", rootwindow.userId, postData.postId)
+    }
+
     // call get_message function when get in the page
     Component.onCompleted: {
         get_message()
+        refreshTimer.start()
     }
 
     Item {
@@ -304,14 +394,42 @@ Page {
                         wrapMode: Text.Wrap
                     }
 
-                    // author and time
-                    Label {
-                        text: qsTr("By ") + postData.author + " | " + postData.timestamp
-                        font.pixelSize: 14
-                        color: Material.secondaryTextColor
+                    Row {
                         Layout.fillWidth: true
-                    }
+                        spacing: 8
 
+                        // 可点击的作者名
+                        Text {
+                            text: postData.author
+                            font.pixelSize: 14
+                            color: Material.accent // 蓝色高亮
+                            font.underline: mouseArea.containsMouse
+                            MouseArea {
+                                id: mouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    console.log("Clicked author:",
+                                                postData.author, "in post")
+                                    stackView.push("qrc:/UserDetail.qml", {
+                                                       "targetUsername": postData.author,
+                                                       "currentUsername": rootwindow.currentUser
+                                                                          || "",
+                                                       "userId": rootwindow.userId
+                                                                 || -1
+                                                   })
+                                }
+                            }
+                        }
+
+                        // 分隔符 + 时间（不可点击）
+                        Text {
+                            text: qsTr(" | ") + postData.timestamp
+                            font.pixelSize: 14
+                            color: Material.secondaryTextColor
+                        }
+                    }
                     // content
                     Label {
                         text: postData.content
@@ -327,14 +445,23 @@ Page {
                         Layout.fillWidth: true
 
                         Button {
-                            text: "★ " + postData.star
+                            id: starButton
+                            text: isStarred ? "★ " + postData.star : "☆ " + postData.star
                             flat: true
-                            Material.foreground: Material.accent
+                            Material.foreground: isStarred ? "#FF9800" : Material.accent // 已赞橙色
+                            font.pixelSize: 16
+
                             onClicked: {
-                                postData.star += 1
-                                promptDialog.show(
-                                            qsTr("Starred"),
-                                            qsTr("You starred the post!"), null)
+                                if (!rootwindow.isLoggedIn || !rootwindow.userId) {
+                                    promptDialog.show(
+                                        qsTr("error"),
+                                        qsTr("login is required"),
+                                        null
+                                    )
+                                    return
+                                }
+
+                                starPost(postData)
                             }
                         }
 
@@ -356,7 +483,7 @@ Page {
                 Layout.fillWidth: true
                 height: 1
                 color: Material.dividerColor
-                visible: commentModel.count > 0 // 仅当有评论时显示
+                visible: commentModel.count > 0
             }
 
             // comment
@@ -395,11 +522,33 @@ Page {
                             anchors.margins: 10
                             spacing: 4
 
-                            Label {
-                                text: author
-                                font.pixelSize: 14
+                            Text {
+                                text: model.author || "Anonymous"
+                                font.pixelSize: 15
                                 font.bold: true
-                                color: Material.primaryTextColor
+                                color: Material.accent
+                                textFormat: Text.PlainText
+
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onEntered: parent.font.underline = true
+                                    onExited: parent.font.underline = false
+
+                                    onClicked: {
+                                        console.log("Comment author clicked:",
+                                                    model.author)
+                                        stackView.push("qrc:/UserDetail.qml", {
+                                                           "targetUsername": model.author,
+                                                           "currentUsername": rootwindow.currentUser
+                                                                              || "",
+                                                           "userId": rootwindow.userId
+                                                                     || 0
+                                                       })
+                                    }
+                                }
                             }
 
                             Label {
@@ -450,6 +599,13 @@ Page {
                     send_message()
                 }
             }
+        }
+    }
+    Timer {
+        id: refreshTimer
+        interval: 500
+        onTriggered: {
+            postData.star = postData.star
         }
     }
 
