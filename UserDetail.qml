@@ -25,35 +25,92 @@ Page {
     Dialog {
         id: promptDialog
         modal: true
-        standardButtons: Dialog.Ok
         anchors.centerIn: Overlay.overlay
-        width: 300
+        width: Math.min(480, implicitContentWidth + 80)
+        height: implicitContentHeight + (header ? header.height : 0) + 100
         parent: Overlay.overlay
 
         property string promptTitle: qsTr("Prompt")
         property string promptText: qsTr("Please take an action.")
         property var onAcceptedCallback: null
 
-        title: promptDialog.promptTitle
+        background: Rectangle {
+            color: "#FFFFFF"
+            radius: 20
+            border.width: 2
+            border.color: "#E2E8F0"
+        }
 
-        ColumnLayout {
+        header: Rectangle {
             width: parent.width
+            height: 80
+            color: "transparent"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 24
+
+                Label {
+                    text: promptDialog.promptTitle
+                    font.pixelSize: 24
+                    font.bold: true
+                    color: "#1E293B"
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            anchors.margins: 24
 
             Label {
                 text: promptDialog.promptText
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: 17
+                color: "#334155"
             }
         }
 
-        onOpened: {
+        footer: Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
 
-        }
+            Button {
+                id: promptOkButton
+                text: qsTr("OK")
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                width: 130
+                height: 46
 
-        onAccepted: {
-            if (onAcceptedCallback) {
-                onAcceptedCallback()
+                background: Rectangle {
+                    radius: 10
+                    color: parent.parent.hovered ? Qt.darker("#6366F1",
+                                                             1.1) : "#6366F1"
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
+                }
+
+                contentItem: Label {
+                    text: promptOkButton.text
+                    font.pixelSize: 16
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    if (promptDialog.onAcceptedCallback) {
+                        promptDialog.onAcceptedCallback()
+                    }
+                    promptDialog.close()
+                }
             }
         }
 
@@ -389,19 +446,180 @@ Page {
                 }
 
                 delegate: Rectangle {
-                    width: userPostList.width - 24
-                    height: 140
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    radius: 10
+                    width: ListView.view.width
+                    height: 160
+                    radius: 16
                     color: "#FFFFFF"
-                    Material.elevation: 3
+                    border.width: postMouseArea.containsMouse ? 2 : 1
+                    border.color: postMouseArea.containsMouse ? "#C7D2FE" : "#CBD5E1"
+                    Material.elevation: 2
 
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 10
+
+                        // 顶部：头像圆圈 + 标题 / 作者 / 时间
+                        RowLayout {
+                            spacing: 12
+
+                            // 头像圆圈和首页post一样风格
+                            Rectangle {
+                                width: 40
+                                height: 40
+                                radius: 20
+                                gradient: Gradient {
+                                    GradientStop {
+                                        position: 0.0
+                                        color: "#6366F1"
+                                    }
+                                    GradientStop {
+                                        position: 1.0
+                                        color: "#8B5CF6"
+                                    }
+                                }
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: model.author.charAt(0).toUpperCase()
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: "#FFFFFF"
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        stackView.push("UserDetail.qml", {
+                                                           "targetUsername": model.author,
+                                                           "currentUsername": rootwindow.currentUser
+                                                                              || "",
+                                                           "userId": rootwindow.userId
+                                                                     || ""
+                                                       })
+                                    }
+                                }
+                            }
+
+                            // 标题 + 作者 + 时间
+                            ColumnLayout {
+                                spacing: 4
+
+                                RowLayout {
+                                    spacing: 6
+                                    Label {
+                                        text: model.title
+                                        font.pixelSize: 18
+                                        font.bold: true
+                                        color: "#111827"
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.Wrap
+                                        maximumLineCount: 1
+                                        elide: Text.ElideRight
+                                    }
+                                    Label {
+                                        visible: model.isLocked
+                                        text: "🔒"
+                                        font.pixelSize: 16
+                                    }
+                                }
+
+                                RowLayout {
+                                    spacing: 4
+
+                                    Label {
+                                        text: "by "
+                                        font.pixelSize: 12
+                                        color: "#6B7280"
+                                    }
+
+                                    Label {
+                                        id: authorLabel
+                                        text: model.author
+                                        font.pixelSize: 12
+                                        color: "#6366F1"
+                                        font.underline: authorMouseArea.containsMouse
+
+                                        MouseArea {
+                                            id: authorMouseArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                stackView.push(
+                                                            "UserDetail.qml", {
+                                                                "targetUsername": model.author,
+                                                                "currentUsername": rootwindow.currentUser || "",
+                                                                "userId": rootwindow.userId
+                                                                          || ""
+                                                            })
+                                            }
+                                        }
+                                    }
+
+                                    Label {
+                                        text: " • " + model.timestamp
+                                        font.pixelSize: 12
+                                        color: "#6B7280"
+                                    }
+                                }
+                            }
+                        }
+
+                        // 帖子内容摘要
+                        Text {
+                            Layout.fillWidth: true
+                            text: model.content
+                            font.pixelSize: 14
+                            color: "#374151"
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 3
+                            elide: Text.ElideRight
+                        }
+
+                        // 底部：star / comment 统计
+                        RowLayout {
+                            spacing: 12
+
+                            RowLayout {
+                                spacing: 6
+                                Label {
+                                    text: "⭐"
+                                    font.pixelSize: 16
+                                }
+                                Label {
+                                    text: model.star
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    color: "#F59E0B"
+                                }
+                            }
+
+                            RowLayout {
+                                spacing: 6
+                                Label {
+                                    text: "💬"
+                                    font.pixelSize: 16
+                                }
+                                Label {
+                                    text: model.comments
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    color: "#6366F1"
+                                }
+                            }
+                        }
+                    }
+
+                    // 点击整张卡片进入帖子详情
                     MouseArea {
+                        id: postMouseArea
                         anchors.fill: parent
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            // console.log("model.postId:",model.postId)
-                            stackView.push("qrc:/PostDetails.qml", {
+                            stackView.push("PostDetails.qml", {
                                                "postData": {
                                                    "title": model.title,
                                                    "author": model.author,
@@ -412,58 +630,6 @@ Page {
                                                    "postId": model.postId
                                                }
                                            })
-                        }
-                    }
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 16
-                        spacing: 8
-
-                        Label {
-                            text: model.title
-                            font.pixelSize: 18
-                            font.bold: true
-                            color: Material.primaryTextColor
-                            Layout.fillWidth: true
-                            wrapMode: Text.Wrap
-                            maximumLineCount: 1
-                            elide: Text.ElideRight
-                        }
-
-                        Label {
-                            text: qsTr("By ") + model.author + " | " + model.timestamp
-                            font.pixelSize: 12
-                            color: Material.secondaryTextColor
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: model.content
-                            font.pixelSize: 14
-                            color: Material.primaryTextColor
-                            Layout.fillWidth: true
-                            wrapMode: Text.Wrap
-                            maximumLineCount: 2
-                            elide: Text.ElideRight
-                        }
-
-                        RowLayout {
-                            spacing: 16
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignLeft
-
-                            Label {
-                                text: "★ " + model.star
-                                font.pixelSize: 12
-                                color: Material.accent
-                            }
-
-                            Label {
-                                text: "💬 " + model.comments
-                                font.pixelSize: 12
-                                color: Material.accent
-                            }
                         }
                     }
 

@@ -10,7 +10,8 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(appForum
     main.cpp
-    qml.qrc
+
+
 )
 
 qt_add_qml_module(appForum
@@ -18,34 +19,17 @@ qt_add_qml_module(appForum
     VERSION 1.0
     QML_FILES
         Main.qml
-        QML_FILES LoginDialog.qml
-        QML_FILES NewPostDialog.qml
-        QML_FILES
-        RESOURCES qml.qrc
-        RESOURCES
-        RESOURCES
-        SOURCES
-        SOURCES
-        QML_FILES
-        QML_FILES
-        QML_FILES
-        SOURCES httpmanager.h httpmanager.cpp
-)
-
-qt_add_resources(appForum "qml"
-    PREFIX "/"
-    FILES
-        Main.qml
         LoginDialog.qml
         NewPostDialog.qml
         PostDetails.qml
         UserDetail.qml
+        QML_FILES Prompt.qml
+        SOURCES User.h
+        SOURCES User.cpp
+        SOURCES UserManager.h
+        SOURCES UserManager.cpp
+        SOURCES
 )
-
-set_source_files_properties(PromptDialog.qml PROPERTIES
-    QT_QML_SINGLETON_TYPE TRUE
-)
-
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
@@ -66,4 +50,3 @@ install(TARGETS appForum
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-

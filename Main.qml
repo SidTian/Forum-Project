@@ -1,68 +1,139 @@
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Controls.Material 2.15
-import QtQuick.Layouts 1.15
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
+import QtQuick.Layouts
 
-// import "qrc:/HttpClient.js" as HttpClient
 ApplicationWindow {
     id: rootwindow
     visible: true
-    width: 800
-    height: 600
-    maximumWidth: 2400 // windows width
-    minimumWidth: 600
-    title: qsTr("Forum App")
+    width: 900
+    height: 650
+    maximumWidth: 2400
+    minimumWidth: 700
+    title: qsTr("Modern Forum")
 
     Material.theme: Material.Light
-    Material.primary: "#409EFF"
-    Material.accent: "#66B1FF"
-    Material.background: "#F5F7FA"
+    Material.primary: "#6366F1"
+    Material.accent: "#8B5CF6"
+    Material.background: "#F8FAFC"
 
-    property string currentUser: "" // username
-    property string userId: "" //user id
-    property string userRole: "visitor" // user role
+    property string currentUser: ""
+    property string userId: ""
+    property string userRole: "visitor"
     property bool isLoggedIn: false
-    property int selectedChannelId: 1 // channel id
+    property bool loadingPosts: false
+    property int selectedChannelId: 1
 
-    // property var http: HttpClient // create instance
-    // Channel data model
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop {
+                position: 0.0
+                color: "#F8FAFC"
+            }
+            GradientStop {
+                position: 1.0
+                color: "#EEF2FF"
+            }
+        }
+    }
+
     ListModel {
         id: channelModel
     }
+    ListModel {
+        id: postModel
+    }
 
-    // prompt dialog
     Dialog {
         id: promptDialog
         modal: true
-        standardButtons: Dialog.Ok
         anchors.centerIn: Overlay.overlay
-        width: 300
+        width: Math.min(480, implicitContentWidth + 80)
+        height: implicitContentHeight + (header ? header.height : 0) + 100
         parent: Overlay.overlay
 
         property string promptTitle: qsTr("Prompt")
         property string promptText: qsTr("Please take an action.")
         property var onAcceptedCallback: null
 
-        title: promptDialog.promptTitle
+        background: Rectangle {
+            color: "#FFFFFF"
+            radius: 20
+            border.width: 2
+            border.color: "#E2E8F0"
+        }
 
-        ColumnLayout {
+        header: Rectangle {
             width: parent.width
+            height: 80
+            color: "transparent"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 24
+
+                Label {
+                    text: promptDialog.promptTitle
+                    font.pixelSize: 24
+                    font.bold: true
+                    color: "#1E293B"
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            anchors.margins: 24
 
             Label {
                 text: promptDialog.promptText
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: 17
+                color: "#334155"
             }
         }
 
-        onOpened: {
+        footer: Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
 
-        }
+            Button {
+                id: promptOkButton
+                text: qsTr("OK")
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                width: 130
+                height: 46
 
-        onAccepted: {
-            if (onAcceptedCallback) {
-                onAcceptedCallback()
+                background: Rectangle {
+                    radius: 10
+                    color: parent.parent.hovered ? Qt.darker("#6366F1",
+                                                             1.1) : "#6366F1"
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
+                }
+
+                contentItem: Label {
+                    text: promptOkButton.text
+                    font.pixelSize: 16
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    if (promptDialog.onAcceptedCallback) {
+                        promptDialog.onAcceptedCallback()
+                    }
+                    promptDialog.close()
+                }
             }
         }
 
@@ -72,11 +143,6 @@ ApplicationWindow {
             onAcceptedCallback = callback
             open()
         }
-    }
-
-    // post data model
-    ListModel {
-        id: postModel
     }
 
     LoginDialog {
@@ -94,33 +160,19 @@ ApplicationWindow {
 
     Connections {
         target: loginDialog
-        function onLoginResponseReceived(response, isSuccess, message) {
-            // console.log("isSuccess: " + isSuccess)
-            if (isSuccess) {
-                // print object
-                // for (let key in response)
-                //   if (response.hasOwnProperty(key))
-                //     console.log(`${key}: ${response[key]}`);
 
-                // set the property
+        function onLoginResponseReceived(response, isSuccess, message) {
+            if (isSuccess) {
                 isLoggedIn = true
                 currentUser = response.username
                 userRole = response.role
                 userId = response.userId
-
-                // console.log("Login successful, user:", username,
-                //             "Message:", message, ", userId: ",userId)
-
-                // show prompt dialog
                 promptDialog.show(
                             qsTr("Login Success"), qsTr(
                                 "Welcome, ") + response.username + "! " + message,
                             null)
-                // refresh the page
                 loadChannels()
             } else {
-                // login failed, alert
-                // have not done yet, based on response code, tell the user what's the problem
                 isLoggedIn = false
                 console.log("Login error:", message)
                 promptDialog.show(qsTr("Login Failed"), message, null)
@@ -129,20 +181,16 @@ ApplicationWindow {
 
         function onRegisterResponseReceived(response, isSuccess, message, username) {
             if (isSuccess) {
-                // register success
                 console.log("Registration successful, username:", username,
                             "Message:", message)
                 promptDialog.show(qsTr("Register Success"),
                                   qsTr("Registration successful! ") + message
                                   + ". Please login with " + username + ".",
                                   () => {
-                                      loginDialog.isLoginMode = true // switch to login mode
-                                      loginDialog.open(
-                                          ) // reopen the login dialog
+                                      loginDialog.isLoginMode = true
+                                      loginDialog.open()
                                   })
             } else {
-                // Register Failed, show the alert
-                // have not done yet, based on response code, tell the user what's the problem
                 console.log("Registration error:", message)
                 promptDialog.show(qsTr("Register Failed"), message, null)
             }
@@ -151,19 +199,8 @@ ApplicationWindow {
 
     Component.onCompleted: {
         loadChannels()
-        // httpClientSetup()
     }
 
-    // function httpClientSetup() {
-    //     // console.log('QML http loaded: ', typeof http) // "object"
-    //     // console.log('QML get method: ', typeof http.get) // "function"！
-    //     // console.log('QML defaults: ', typeof http.defaults) // "object"
-
-    //     http.defaults.baseURL = "http://sidtian.com:3000"
-    //     // console.log('baseURL set: ', http.defaults.baseURL) // 正常
-    // }
-
-    // load channels function
     function loadChannels() {
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
@@ -179,10 +216,8 @@ ApplicationWindow {
                                                 })
                         }
                         if (channelModel.count > 0) {
-                            // selectedChannelId = channelModel.get(
-                            //             0).id
                             selectedChannelId = 1
-                            loadPosts(selectedChannelId) // reload the post
+                            loadPosts(selectedChannelId)
                         } else {
                             postModel.clear()
                         }
@@ -190,7 +225,7 @@ ApplicationWindow {
                         console.error("Failed to parse channels:", e)
                         promptDialog.show(qsTr("Error"),
                                           qsTr("Failed to load channels"), null)
-                        postModel.clear() // clear the post
+                        postModel.clear()
                     }
                 } else {
                     console.error("Failed to load channels:", xhr.status,
@@ -206,185 +241,53 @@ ApplicationWindow {
         xhr.open("GET", "http://sidtian.com:3000/channels")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.send()
-        // console.log("Fetching channels from API...")
     }
 
-    // load posts function (based on channelId)
     function loadPosts(channelId) {
-        // loadingIndicator.running = true
+        rootwindow.loadingPosts = true
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
-                // loadingIndicator.running = false
+                rootwindow.loadingPosts = false
                 if (xhr.status === 200) {
                     try {
                         var posts = JSON.parse(xhr.responseText)
                         postModel.clear()
                         for (var i = 0; i < posts.length; i++) {
                             postModel.append({
+                                                 "postId": posts[i].postId,
                                                  "title": posts[i].title,
                                                  "author": posts[i].author,
                                                  "content": posts[i].content,
                                                  "timestamp": posts[i].timestamp,
-                                                 "star": posts[i].star,
-                                                 "comments": posts[i].comments,
-                                                 "isLocked": posts[i].isLocked,
-                                                 "postId": posts[i].postId
+                                                 "star": posts[i].star || 0,
+                                                 "comments": posts[i].comments
+                                                 || 0,
+                                                 "isLocked": posts[i].is_locked
+                                                 || false
                                              })
-                        }
-                        // console.log("Loaded", posts.length,
-                        //             "posts for channel", channelId)
-                        if (userRole !== "admin") {
-                            // if post is locked, don't show
-                            for (var j = postModel.count - 1; j >= 0; j--) {
-                                if (postModel.get(j).isLocked) {
-                                    postModel.remove(
-                                                j, 1) // remove the locked post
-                                }
-                            }
                         }
                     } catch (e) {
                         console.error("Failed to parse posts:", e)
                         promptDialog.show(qsTr("Error"),
                                           qsTr("Failed to load posts"), null)
+                        postModel.clear()
                     }
                 } else {
-                    console.error("Failed to load posts:", xhr.status)
+                    console.error("Failed to load posts:", xhr.status,
+                                  xhr.responseText)
                     promptDialog.show(
                                 qsTr("Error"),
                                 qsTr("Failed to load posts: Network error"),
                                 null)
+                    postModel.clear()
                 }
             }
         }
-        var url = "http://sidtian.com:3000/get_posts?channelId=" + channelId
-        xhr.open("GET", url)
+        xhr.open("GET",
+                 "http://sidtian.com:3000/get_posts?channelId=" + channelId)
+        xhr.setRequestHeader("Content-Type", "application/json")
         xhr.send()
-        // console.log("Fetching posts for channel:", channelId)
-    }
-
-    // search function
-    function performSearch() {
-        const keyword = searchField.text.trim()
-        if (keyword === "") {
-            promptDialog.show(qsTr("search alert"), qsTr("please give input keyword"), null)
-            return
-        }
-
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var response = JSON.parse(xhr.responseText)
-
-                        var posts = []
-                        if (Array.isArray(response)) {
-                            posts = response
-                        } else if (response.posts) {
-                            posts = response.posts
-                        } else if (response.results) {
-                            posts = response.results
-                        }
-
-                        postModel.clear()
-
-                        if (posts.length === 0) {
-                            console.log("search no result:", keyword)
-                            promptDialog.show(qsTr("Search no result"), qsTr("didn't find post"), null)
-                            return
-                        }
-
-                        // fill the data
-                        for (var i = 0; i < posts.length; i++) {
-                            var p = posts[i]
-                            postModel.append({
-                                "postId": p.postId || 0,
-                                "title": p.highlightedTitle || p.title || qsTr("no title"),
-                                "author": p.author || "",
-                                "content": p.highlightedContent || p.content || "",
-                                "timestamp": p.timestamp || "",
-                                "star": parseInt(p.star) || 0,
-                                "comments": parseInt(p.comments) || 0,
-                                "isLocked": p.isLocked ,
-                                "channel": p.channel || "General"
-                            })
-                        }
-
-                        console.log("search :", posts.length, " result:", keyword)
-
-                        // lock the post
-                        if (userRole !== "admin") {
-                            for (var j = postModel.count - 1; j >= 0; j--) {
-                                if (postModel.get(j).isLocked) {
-                                    postModel.remove(j, 1)
-                                }
-                            }
-                        }
-
-                    } catch (e) {
-                        console.error("parse error:", e)
-                        promptDialog.show(qsTr("error"), qsTr("error in load result"), null)
-                    }
-                } else {
-                    console.error("error:", xhr.status)
-                    promptDialog.show(qsTr("error"), qsTr("network error"), null)
-                }
-            }
-        }
-
-        xhr.open("POST", "http://sidtian.com:3000/search")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        xhr.send(JSON.stringify({ query: keyword }))
-
-        console.log("searching:", keyword)
-    }
-
-    // switch post islock state (not done yet)
-    function togglePostLock(postIndex, currentIsLocked, postId, currentUsername) {
-        // optismic update
-        postModel.setProperty(postIndex, "isLocked", !currentIsLocked)
-
-        var xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var response = JSON.parse(xhr.responseText)
-                        if (response.code === 1) {
-
-                            // console.log("Lock status updated:", response.message)
-                            // loadChannels() // refresh the channel and post
-                        } else {
-                            console.error("Lock update failed:",
-                                          response.message)
-                            // rollback if failed
-                            postModel.setProperty(postIndex, "isLocked",
-                                                  currentIsLocked)
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse lock response:", e)
-                        // rollback if failed
-                        postModel.setProperty(postIndex, "isLocked",
-                                              currentIsLocked)
-                    }
-                } else {
-                    console.error("Lock request failed:", xhr.status)
-                    // rollback if failed
-                    postModel.setProperty(postIndex, "isLocked",
-                                          currentIsLocked)
-                }
-            }
-        }
-        xhr.open("POST", "http://sidtian.com:3000/lock_post")
-        xhr.setRequestHeader("Content-Type", "application/json")
-        var lockData = JSON.stringify({
-                                          "postId": postId,
-                                          "isLocked": !currentIsLocked,
-                                          "username": currentUser,
-                                          "userId": userId
-                                      })
-        xhr.send(lockData)
     }
 
     // join in channel
@@ -406,7 +309,11 @@ ApplicationWindow {
                             console.log("Joined channel:", response.message)
                             promptDialog.show(qsTr("Success"),
                                               response.message, null)
-                        } else {
+                        } else if(response.code === 2) {
+                            promptDialog.show(qsTr("Error"),
+                                              response.message, null)
+                        }
+                        else {
                             console.error("Join failed:", response.message)
                             promptDialog.show(qsTr("Error"),
                                               response.message, null)
@@ -433,6 +340,40 @@ ApplicationWindow {
         console.log("Joining channel ID:", selectedChannelId)
     }
 
+    function togglePostLock(index, currentLockState, postId, username) {
+        var xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText)
+                        if (response.code === 1) {
+                            postModel.setProperty(index, "isLocked",
+                                                  !currentLockState)
+                            promptDialog.show(
+                                        qsTr("Success"),
+                                        !currentLockState ? qsTr("Post locked successfully") : qsTr(
+                                                                "Post unlocked successfully"),
+                                        null)
+                        } else {
+                            promptDialog.show(qsTr("Error"),
+                                              response.message, null)
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse response:", e)
+                    }
+                }
+            }
+        }
+        xhr.open("POST", "http://sidtian.com:3000/lock_post")
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.send(JSON.stringify({
+                                    "postId": postId,
+                                    "username": username,
+                                    "isLocked": !currentLockState
+                                }))
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
@@ -440,382 +381,693 @@ ApplicationWindow {
 
         pushEnter: Transition {
             PropertyAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: 250
+                easing.type: Easing.InOutQuad
+            }
+            PropertyAnimation {
                 property: "x"
                 from: stackView.width
                 to: 0
-                duration: 200
+                duration: 250
+                easing.type: Easing.OutCubic
             }
         }
-
+        pushExit: Transition {
+            PropertyAnimation {
+                property: "opacity"
+                from: 1
+                to: 0
+                duration: 250
+            }
+        }
+        popEnter: Transition {
+            PropertyAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: 250
+            }
+        }
         popExit: Transition {
+            PropertyAnimation {
+                property: "opacity"
+                from: 1
+                to: 0
+                duration: 250
+            }
             PropertyAnimation {
                 property: "x"
                 from: 0
                 to: stackView.width
-                duration: 200
+                duration: 250
+                easing.type: Easing.InCubic
             }
         }
+    }
 
-        Rectangle {
-            id: mainPage
-            anchors.centerIn: parent
-            width: Math.min(parent.width, 1000) //main page max width
-            height: parent.height
-            color: Material.background
+    Component {
+        id: mainPage
 
-            ColumnLayout {
-                anchors.fill: parent
+        Page {
+            background: Rectangle {
+                color: "transparent"
+            }
 
-                // header
-                ToolBar {
-                    Layout.fillWidth: true
-                    Material.elevation: 4
-                    z: 10
-                    background: Rectangle {
-                        color: Material.primary
-                        radius: 4
+            header: Rectangle {
+                width: parent.width
+                height: 80
+                color: "#FFFFFF"
+                border.width: 1
+                border.color: "#CBD5E1"
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 30
+                    anchors.rightMargin: 30
+                    spacing: 20
+
+                    RowLayout {
+                        spacing: 12
+                        Rectangle {
+                            width: 45
+                            height: 45
+                            radius: 12
+                            gradient: Gradient {
+                                GradientStop {
+                                    position: 0.0
+                                    color: "#6366F1"
+                                }
+                                GradientStop {
+                                    position: 1.0
+                                    color: "#8B5CF6"
+                                }
+                            }
+                            Label {
+                                anchors.centerIn: parent
+                                text: "F"
+                                font.pixelSize: 24
+                                font.bold: true
+                                color: "#FFFFFF"
+                            }
+                        }
+                        Label {
+                            text: qsTr("Modern Forum")
+                            font.pixelSize: 24
+                            font.bold: true
+                            color: "#1E293B"
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
                     }
 
                     RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 12
+                        spacing: 12
 
-                        Label {
-                            text: qsTr("Forum")
-                            font.pixelSize: 22
-                            font.bold: true
-                            color: "#FFFFFF"
-                        }
-
-                        Label {
-                            text: userRole
-                            font.pixelSize: 14
-                            font.bold: true
-                            color: "#FFFFFF"
-                        }
-
-                        // search bar
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 5
-
-                            TextField {
-                                id: searchField
-                                placeholderText: qsTr("Search posts...")
-                                Layout.fillWidth: true
-                                font.pixelSize: 14
-                                Material.accent: "#FFFFFF"
-                                background: Rectangle {
-                                    color: "transparent"
-                                    border.color: "#FFFFFF"
-                                    border.width: 1
-                                    radius: 4
-                                }
-                                Keys.onReturnPressed: performSearch(
-                                                          ) // press Enter for searching
-                            }
-
-                            Button {
-                                text: qsTr("Search")
-                                flat: true
-                                Material.foreground: "#FFFFFF"
-                                onClicked: performSearch()
-                            }
-                        }
-
-                        ToolButton {
-                            text: qsTr("user detail")
-                            flat: true
-                            Material.foreground: "#FFFFFF"
+                        Button {
+                            id: newPostButton
+                            text: "✏️ " + qsTr("New Post")
                             visible: isLoggedIn
-                            Material.background: Qt.lighter(Material.primary,
-                                                            1.2)
-                            onClicked: {
-                                // switch to UserDetail page
-                                // pass current user id as parameter
-                                // console.log("currentUsername ", currentUser)
-                                // console.log("userId ", userId)
-                                stackView.push("qrc:/UserDetail.qml", {
-                                                   "userId": userId,
-                                                   "targetUsername": currentUser
-                                               })
-                            }
-                        }
-
-                        ToolButton {
-                            text: qsTr("New Post")
                             flat: true
-                            Material.foreground: "#FFFFFF"
-                            Material.background: Qt.lighter(Material.primary,
-                                                            1.2)
+                            height: 42
+                            font.pixelSize: 14
+
+                            background: Rectangle {
+                                radius: 10
+                                gradient: Gradient {
+                                    GradientStop {
+                                        position: 0.0
+                                        color: parent.parent.hovered ? "#7C3AED" : "#6366F1"
+                                    }
+                                    GradientStop {
+                                        position: 1.0
+                                        color: parent.parent.hovered ? "#6D28D9" : "#8B5CF6"
+                                    }
+                                }
+                            }
+
+                            contentItem: Label {
+                                text: newPostButton.text
+                                font: newPostButton.font
+                                color: "#FFFFFF"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
                             onClicked: {
-                                // identify if user is log in
                                 if (isLoggedIn) {
                                     newPostDialog.open()
                                 } else {
                                     promptDialog.show(
-                                                qsTr("Login Required"), qsTr(
-                                                    "You must log in to create a new post."),
-                                                function () {
+                                                qsTr("Login required"), qsTr(
+                                                    "Please log in to create a new post."),
+                                                () => {
                                                     loginDialog.open()
                                                 })
                                 }
                             }
                         }
 
-                        ToolButton {
+                        Rectangle {
+                            visible: isLoggedIn
+                            width: 180
+                            height: 42
+                            radius: 21
+                            color: "#F1F5F9"
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 6
+                                anchors.rightMargin: 12
+                                spacing: 10
+
+                                Rectangle {
+                                    width: 32
+                                    height: 32
+                                    radius: 16
+                                    gradient: Gradient {
+                                        GradientStop {
+                                            position: 0.0
+                                            color: "#F59E0B"
+                                        }
+                                        GradientStop {
+                                            position: 1.0
+                                            color: "#EF4444"
+                                        }
+                                    }
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: currentUser.charAt(
+                                                  0).toUpperCase()
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        color: "#FFFFFF"
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    spacing: 2
+                                    Layout.fillWidth: true
+                                    Label {
+                                        text: currentUser
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                        color: "#1E293B"
+                                        elide: Text.ElideRight
+                                        Layout.fillWidth: true
+                                    }
+                                    Label {
+                                        text: userRole === "admin" ? "👑 Admin" : "🌟 Member"
+                                        font.pixelSize: 10
+                                        color: "#64748B"
+                                    }
+                                    // 透明的点击区域，覆盖整个用户信息区域
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            stackView.push(
+                                                        "UserDetail.qml", {
+                                                            "userId": userId,
+                                                            "targetUsername": currentUser
+                                                        })
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Button {
+                            id: loginButton
                             text: isLoggedIn ? qsTr("Logout") : qsTr("Login")
                             flat: true
-                            Material.foreground: "#FFFFFF"
-                            Material.background: Qt.lighter(Material.primary,
-                                                            1.2)
+                            height: 42
+                            font.pixelSize: 14
+
+                            background: Rectangle {
+                                radius: 10
+                                color: parent.parent.hovered ? (isLoggedIn ? "#FEE2E2" : "#EEF2FF") : "transparent"
+                                border.width: 2
+                                border.color: isLoggedIn ? "#EF4444" : "#6366F1"
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 150
+                                    }
+                                }
+                            }
+
+                            contentItem: Label {
+                                text: loginButton.text
+                                font: loginButton.font
+                                color: isLoggedIn ? "#EF4444" : "#6366F1"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
                             onClicked: {
-                                loginDialog.username = ""
-                                loginDialog.password = ""
-                                loginDialog.confirmPassword = ""
-                                // log out
                                 if (isLoggedIn) {
-                                    currentUser = "" // clear user state
-                                    userRole = "visitor"
-                                    userId = ""
-                                    selectedChannelId = 0 // reset channel ID
                                     isLoggedIn = false
-                                    loadChannels()
-                                    postList.forceLayout()
-                                    channelList.forceLayout()
+                                    currentUser = ""
+                                    userId = ""
+                                    userRole = "visitor"
+                                    promptDialog.show(
+                                                qsTr("Logout"), qsTr(
+                                                    "You have been logged out successfully."),
+                                                null)
                                 } else {
-                                    // log in
                                     loginDialog.open()
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                ListView {
-                    id: postList
-                    Layout.fillWidth: true
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 20
+
+                Rectangle {
+                    Layout.preferredWidth: 220
                     Layout.fillHeight: true
-                    model: postModel
-                    clip: true
-                    spacing: 12
-                    visible: !loadingIndicator.visible.running
+                    radius: 16
+                    color: "#FFFFFF"
+                    border.width: 1
+                    border.color: "#CBD5E1"
 
-                    delegate: Rectangle {
-                        width: postList.width
-                        height: 140
-                        radius: 10
-                        Material.elevation: mouseArea.containsMouse ? 6 : 3
-                        border.color: model.isLocked ? "#FF0000" : "#E0E0E0"
-                        border.width: model.isLocked ? 2 : 1
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 12
 
-                        MouseArea {
-                            id: mouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                // switch to PostDetails page with parameter
-                                // console.log("Navigating to post:", title)
-                                stackView.push("qrc:/PostDetails.qml", {
-                                                   "postData": {
-                                                       "title": model.title,
-                                                       "author": model.author,
-                                                       "content": model.content,
-                                                       "timestamp": model.timestamp,
-                                                       "star": model.star,
-                                                       "comments": model.comments,
-                                                       "postId": model.postId
-                                                   }
-                                               })
+                        Label {
+                            text: qsTr("📚 Channels")
+                            font.pixelSize: 18
+                            font.bold: true
+                            color: "#1E293B"
+                            Layout.fillWidth: true
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 2
+                            radius: 1
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop {
+                                    position: 0.0
+                                    color: "#6366F1"
+                                }
+                                GradientStop {
+                                    position: 1.0
+                                    color: "#8B5CF6"
+                                }
                             }
                         }
 
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 16
+                        ListView {
+                            id: channelList
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            model: channelModel
                             spacing: 8
-                            Material.accent: model.isLocked ? "#D32F2F" : Material.primaryTextColor // 锁定时红色
+                            clip: true
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 8
-
-                                Label {
-                                    text: model.title
-                                    font.pixelSize: 20
-                                    font.bold: true
-                                    color: Material.primaryTextColor
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.Wrap
-                                    maximumLineCount: 1
-                                    elide: Text.ElideRight
+                            delegate: Rectangle {
+                                width: ListView.view.width
+                                height: 48
+                                radius: 10
+                                color: model.id === selectedChannelId ? "#EEF2FF" : (channelMouseArea.containsMouse ? "#F8FAFC" : "transparent")
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 150
+                                    }
                                 }
 
-                                // Lock button (only admin can see it)
-                                Button {
-                                    id: lockButton
-                                    text: model.isLocked ? qsTr(
-                                                               "Unlock") : qsTr(
-                                                               "Lock")
-                                    flat: true
-                                    Material.accent: Material.Red
-                                    visible: userRole === "admin"
+                                Rectangle {
+                                    visible: model.id === selectedChannelId
+                                    width: 4
+                                    height: parent.height - 12
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    radius: 2
+                                    gradient: Gradient {
+                                        GradientStop {
+                                            position: 0.0
+                                            color: "#6366F1"
+                                        }
+                                        GradientStop {
+                                            position: 1.0
+                                            color: "#8B5CF6"
+                                        }
+                                    }
+                                }
 
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 16
+                                    spacing: 10
+
+                                    Label {
+                                        text: "#"
+                                        font.pixelSize: 18
+                                        font.bold: true
+                                        color: model.id
+                                               === selectedChannelId ? "#6366F1" : "#94A3B8"
+                                    }
+                                    Label {
+                                        text: model.name
+                                        font.pixelSize: 14
+                                        font.bold: model.id === selectedChannelId
+                                        color: model.id
+                                               === selectedChannelId ? "#1E293B" : "#64748B"
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: channelMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        togglePostLock(index, model.isLocked,
-                                                       model.postId,
-                                                       currentUser)
+                                        selectedChannelId = model.id
+                                        loadPosts(selectedChannelId)
                                     }
                                 }
                             }
-                            // author and time
-                            Label {
-                                text: qsTr("By ") + model.author + " | " + model.timestamp
-                                font.pixelSize: 12
-                                color: Material.secondaryTextColor
-                                Layout.fillWidth: true
-                            }
 
-                            // content
-                            Label {
-                                font.pixelSize: 14
-                                color: Material.primaryTextColor
-                                Layout.fillWidth: true
-                                wrapMode: Text.Wrap
-                                maximumLineCount: 2
-                                elide: Text.ElideRight
-                            }
-
-                            // Star and Comment
-                            RowLayout {
-                                spacing: 16
-                                Layout.fillWidth: true
-                                Layout.alignment: Qt.AlignLeft
-
-                                Label {
-                                    text: "★ " + model.star
-                                    font.pixelSize: 12
-                                    color: Material.accent
-                                }
-
-                                Label {
-                                    text: "💬 " + model.comments
-                                    font.pixelSize: 12
-                                    color: Material.accent
+                            ScrollBar.vertical: ScrollBar {
+                                active: true
+                                width: 6
+                                policy: ScrollBar.AsNeeded
+                                contentItem: Rectangle {
+                                    radius: 3
+                                    color: parent.pressed ? "#6366F1" : "#CBD5E1"
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 150
+                                        }
+                                    }
                                 }
                             }
                         }
 
-                        Behavior on Material.elevation {
-                            NumberAnimation {
-                                duration: 200
-                                easing.type: Easing.InOutQuad
-                            }
-                        }
-                    }
-
-                    ScrollBar.vertical: ScrollBar {
-                        active: true
-                        width: 8
-                        background: Rectangle {
-                            color: Qt.lighter(Material.primary, 1.8)
-                            radius: 4
-                        }
-                        contentItem: Rectangle {
-                            color: Material.primary
-                            radius: 4
-                        }
-                    }
-                }
-
-                // load indicator (not done yet)
-                BusyIndicator {
-                    id: loadingIndicator
-                    Layout.alignment: Qt.AlignCenter
-                    Layout.preferredHeight: 50
-                    Layout.preferredWidth: 50
-                    running: false
-                    visible: running
-                    z: 2
-                }
-            }
-
-            // channels list
-            Rectangle {
-                id: channels
-                x: -100
-                y: parent.height / 2 - height / 2
-                width: 100
-                height: parent.height / 2
-                color: "#f0f0f0"
-                border.color: "#ccc"
-                border.width: 1
-                z: 1
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 5
-
-                    // Channels ListView
-                    ListView {
-                        id: channelList
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        model: channelModel
-                        spacing: 5
-                        clip: true
-
-                        delegate: Button {
-                            id: channelButton
-                            height: 40
-                            text: model.name
+                        Button {
+                            id: joinChannelButton
+                            text: qsTr("➕ Join Channel")
+                            Layout.fillWidth: true
+                            height: 44
                             flat: true
-                            Material.background: model.id === selectedChannelId ? Material.primary : "transparent"
-                            Material.foreground: model.id === selectedChannelId ? "#FFFFFF" : Material.primaryTextColor
-                            font.pixelSize: 12
+
+                            background: Rectangle {
+                                radius: 10
+                                gradient: Gradient {
+                                    GradientStop {
+                                        position: 0.0
+                                        color: parent.parent.hovered ? "#7C3AED" : "#6366F1"
+                                    }
+                                    GradientStop {
+                                        position: 1.0
+                                        color: parent.parent.hovered ? "#6D28D9" : "#8B5CF6"
+                                    }
+                                }
+                            }
+
+                            contentItem: Label {
+                                text: joinChannelButton.text
+                                font.pixelSize: 13
+                                font.bold: true
+                                color: "#FFFFFF"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
 
                             onClicked: {
-                                selectedChannelId = model.id
-                                loadPosts(selectedChannelId) // load post based on ChannelId
-                            }
-                        }
-
-                        ScrollBar.vertical: ScrollBar {
-                            active: true
-                            width: 4
-                            background: Rectangle {
-                                color: "#ccc"
-                                radius: 2
-                            }
-                            contentItem: Rectangle {
-                                color: Material.primary
-                                radius: 2
+                                if (isLoggedIn) {
+                                    joinSelectedChannel()
+                                } else {
+                                    promptDialog.show(
+                                                qsTr("Login required"), qsTr(
+                                                    "You must log in to join a channel."),
+                                                () => {
+                                                    loginDialog.open()
+                                                })
+                                }
                             }
                         }
                     }
+                }
 
-                    // Join Channel button
-                    Button {
-                        id: joinChannelButton
-                        text: qsTr("Join Channel")
-                        flat: true
-                        Material.background: Material.primary
-                        Material.foreground: "#FFFFFF"
-                        font.pixelSize: 12
-                        height: 40
-                        width: parent.width - 10
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 16
+                    color: "transparent"
 
-                        onClicked: {
-                            if (isLoggedIn)
-                                joinSelectedChannel()
-                            else
-                                promptDialog.show(
-                                            qsTr("login required"),
-                                            "You must log in to create a new post.",
-                                            () => {
-                                                loginDialog.open()
-                                            })
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 16
+
+                        BusyIndicator {
+                            id: loadingIndicator
+                            Layout.alignment: Qt.AlignCenter
+                            Layout.preferredHeight: 60
+                            Layout.preferredWidth: 60
+                            running: rootwindow.loadingPosts
+                            visible: rootwindow.loadingPosts
+                        }
+
+                        ListView {
+                            id: postList
+                            visible: !rootwindow.loadingPosts
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            model: postModel
+                            spacing: 16
+                            clip: true
+
+                            delegate: Rectangle {
+                                width: ListView.view.width
+                                height: 160
+                                radius: 16
+                                color: "#FFFFFF"
+                                border.width: postMouseArea.containsMouse ? 2 : 1
+                                border.color: postMouseArea.containsMouse ? "#C7D2FE" : "#CBD5E1"
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 16
+                                    spacing: 10
+
+                                    RowLayout {
+                                        spacing: 12
+
+                                        Rectangle {
+                                            width: 40
+                                            height: 40
+                                            radius: 20
+                                            gradient: Gradient {
+                                                GradientStop {
+                                                    position: 0.0
+                                                    color: "#6366F1"
+                                                }
+                                                GradientStop {
+                                                    position: 1.0
+                                                    color: "#8B5CF6"
+                                                }
+                                            }
+                                            Label {
+                                                anchors.centerIn: parent
+                                                text: model.author.charAt(
+                                                          0).toUpperCase()
+                                                font.pixelSize: 18
+                                                font.bold: true
+                                                color: "#FFFFFF"
+                                            }
+
+                                            // 添加点击事件
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    stackView.push(
+                                                                "UserDetail.qml",
+                                                                {
+                                                                    "targetUsername": model.author,
+                                                                    "currentUsername": rootwindow.currentUser || "",
+                                                                    "userId": rootwindow.userId
+                                                                              || ""
+                                                                })
+                                                }
+                                            }
+                                        }
+
+                                        ColumnLayout {
+                                            spacing: 4
+
+                                            RowLayout {
+                                                spacing: 6
+                                                Label {
+                                                    text: model.title
+                                                    font.pixelSize: 18
+                                                    font.bold: true
+                                                    color: "#111827"
+                                                }
+                                                Label {
+                                                    visible: model.isLocked
+                                                    text: "🔒"
+                                                    font.pixelSize: 16
+                                                }
+                                            }
+
+                                            RowLayout {
+                                                spacing: 4
+
+                                                Label {
+                                                    text: "by "
+                                                    font.pixelSize: 12
+                                                    color: "#6B7280"
+                                                }
+
+                                                Label {
+                                                    id: authorLabel
+                                                    text: model.author
+                                                    font.pixelSize: 12
+                                                    color: "#6366F1"
+                                                    font.underline: authorMouseArea.containsMouse
+
+                                                    MouseArea {
+                                                        id: authorMouseArea
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            stackView.push(
+                                                                        "UserDetail.qml",
+                                                                        {
+                                                                            "targetUsername": model.author,
+                                                                            "currentUsername": rootwindow.currentUser || "",
+                                                                            "userId": rootwindow.userId || ""
+                                                                        })
+                                                        }
+                                                    }
+                                                }
+
+                                                Label {
+                                                    text: " • " + model.timestamp
+                                                    font.pixelSize: 12
+                                                    color: "#6B7280"
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: model.content
+                                        wrapMode: Text.WordWrap
+                                        maximumLineCount: 3
+                                        elide: Text.ElideRight
+                                        font.pixelSize: 14
+                                        color: "#374151"
+                                    }
+
+                                    RowLayout {
+                                        spacing: 12
+
+                                        RowLayout {
+                                            spacing: 6
+                                            Label {
+                                                text: "⭐"
+                                                font.pixelSize: 16
+                                            }
+                                            Label {
+                                                text: model.star
+                                                font.pixelSize: 13
+                                                font.bold: true
+                                                color: "#F59E0B"
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            spacing: 6
+                                            Label {
+                                                text: "💬"
+                                                font.pixelSize: 16
+                                            }
+                                            Label {
+                                                text: model.comments
+                                                font.pixelSize: 13
+                                                font.bold: true
+                                                color: "#6366F1"
+                                            }
+                                        }
+
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Label {
+                                            visible: model.isLocked
+                                            text: "🔒 Locked"
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                            color: "#EF4444"
+                                            padding: 6
+                                            background: Rectangle {
+                                                radius: 6
+                                                color: "#FEE2E2"
+                                            }
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: postMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        console.log("Direct push, postId:",
+                                                    model.postId) // 确认触发
+
+                                        // 直接 push URL 字符串，Qt 内部异步加载 + 实例化
+                                        stackView.push("PostDetails.qml", {
+                                                           "postData": {
+                                                               "title": model.title,
+                                                               "author": model.author,
+                                                               "content": model.content,
+                                                               "timestamp": model.timestamp,
+                                                               "star": model.star,
+                                                               "comments": model.comments,
+                                                               "postId": model.postId
+                                                           }
+                                                       })
+                                    }
+                                }
+                            }
+
+                            ScrollBar.vertical: ScrollBar {
+                                active: true
+                                width: 8
+                                policy: ScrollBar.AsNeeded
+                                contentItem: Rectangle {
+                                    radius: 4
+                                    color: parent.pressed ? "#6366F1" : "#CBD5E1"
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 150
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

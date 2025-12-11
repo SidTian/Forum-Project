@@ -6,128 +6,216 @@ import QtQuick.Layouts 1.15
 Dialog {
     id: newPostDialog
     modal: true
-    standardButtons: Dialog.Ok | Dialog.Cancel
+    standardButtons: Dialog.NoButton
     anchors.centerIn: Overlay.overlay
     parent: Overlay.overlay
-    width: 450
-    height: 350
+    width: 520
+
     background: Rectangle {
-        color: Material.background
-        radius: 16
-        Material.elevation: 4
+        color: "#FFFFFF"
+        radius: 20
+        border.width: 2
+        border.color: "#E2E8F0"
+        Material.elevation: 6
     }
+
+    // 当前作者，从 rootwindow 传入
     property string currentAuthor: ""
 
+    /* ---------------------- HEADER ---------------------- */
     header: Rectangle {
-        color: Material.background
-        radius: 16
-        height: 80
         width: parent.width
-        Material.elevation: 2
+        height: 110
+        color: "transparent"
+
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.margins: 24
             spacing: 8
-            Rectangle {
-                color: "transparent"
-                Layout.fillWidth: true
-                Layout.preferredHeight: 30
-                Label {
-                    text: qsTr("New Post")
-                    font.pixelSize: 20
-                    font.bold: true
-                    color: Material.primaryTextColor
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+
+            Label {
+                text: qsTr("New Post")
+                font.pixelSize: 26
+                font.bold: true
+                color: "#111827"
             }
-            Rectangle {
-                color: "transparent"
-                Layout.fillWidth: true
-                Layout.preferredHeight: 20
-                Label {
-                    text: qsTr("Author: ") + currentAuthor
-                    font.pixelSize: 12
-                    color: Material.secondaryTextColor
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: currentAuthor !== ""
-                }
+
+            Label {
+                text: qsTr("Create a new discussion in this channel.")
+                font.pixelSize: 14
+                color: "#6B7280"
+            }
+
+            Label {
+                text: qsTr("Author: ") + currentAuthor
+                font.pixelSize: 12
+                color: "#9CA3AF"
+                Layout.alignment: Qt.AlignRight
             }
         }
     }
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 20
-        spacing: 15
-        TextField {
-            id: titleField
-            placeholderText: qsTr("Enter post title...")
-            Layout.fillWidth: true
-            Layout.preferredHeight: 50
-            font.pixelSize: 16
-            Material.accent: Material.Blue
-            background: Rectangle {
-                radius: 8
-                color: Material.background
-                Material.elevation: titleField.focus ? 4 : 1
-                border.color: titleField.focus ? Material.accent : Material.dividerColor
-                border.width: 1
-            }
-        }
-        // input content
-        TextArea {
-            id: contentField
-            placeholderText: qsTr("Enter post content...")
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            font.pixelSize: 14
-            Material.accent: Material.Blue
-            wrapMode: TextArea.Wrap
-            padding: 10
-            topPadding: 12
-            background: Rectangle {
-                radius: 8
-                color: Material.background
-                Material.elevation: contentField.focus ? 4 : 1
-                border.color: contentField.focus ? Material.accent : Material.dividerColor
-                border.width: 1
-            }
-        }
-    }
-    footer: RowLayout {
+
+    /* ---------------------- 中间内容：Title + Content + 按钮 ---------------------- */
+    contentItem: ColumnLayout {
+        anchors.leftMargin: 24
+        anchors.rightMargin: 24
+        anchors.topMargin: 12
+        anchors.bottomMargin: 16
         spacing: 20
-        Item {
+
+        // Title 区域
+        ColumnLayout {
+            spacing: 6
             Layout.fillWidth: true
+
+            Label {
+                text: qsTr("Title")
+                font.pixelSize: 14
+                font.bold: true
+                color: "#1F2937"
+            }
+
+            TextField {
+                id: titleField
+                Layout.fillWidth: true
+                placeholderText: qsTr("Enter a concise, descriptive title")
+
+                background: Rectangle {
+                    radius: 12
+                    color: "#F3F4F6"
+                    border.width: 1
+                    border.color: titleField.focus ? "#6366F1" : "#E5E7EB"
+                }
+
+                leftPadding: 14
+                rightPadding: 14
+                topPadding: 12
+                bottomPadding: 10
+            }
         }
-        Button {
-            text: qsTr("Cancel")
-            flat: true
-            Material.background: Material.Grey
-            onClicked: newPostDialog.reject()
-            Layout.preferredWidth: 100
-        }
-        Button {
-            text: qsTr("Post")
-            highlighted: true
-            Material.accent: Material.Blue
-            onClicked: newPostDialog.accept()
-            Layout.preferredWidth: 100
-        }
-        Item {
+
+        // Content 独立卡片
+        Rectangle {
+            radius: 14
+            color: "#FFFFFF"
+            border.width: 1
+            border.color: "#E5E7EB"
+
             Layout.fillWidth: true
+            Layout.preferredHeight: 220
+            Layout.maximumHeight: 260
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 10
+
+                Label {
+                    text: qsTr("Content")
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#1F2937"
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 12
+                    color: "#F9FAFB"
+                    border.width: 1
+                    border.color: contentField.focus ? "#6366F1" : "#E5E7EB"
+
+                    TextArea {
+                        id: contentField
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        wrapMode: TextArea.Wrap
+                        placeholderText: qsTr("Describe your question, idea, or discussion topic...")
+                        font.pixelSize: 14
+                    }
+                }
+            }
+        }
+
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            spacing: 20
+
+            Item { Layout.fillWidth: true }
+
+            Button {
+                text: qsTr("Cancel")
+                width: 110
+                height: 44
+
+                background: Rectangle {
+                    radius: 22
+                    border.width: 1
+                    border.color: "#D1D5DB"
+                    color: "#F8FAFC"
+                }
+
+                contentItem: Label {
+                    text: qsTr("Cancel")
+                    font.pixelSize: 14
+                    color: "#6B7280"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: newPostDialog.reject()
+            }
+
+            Button {
+                text: qsTr("Post")
+                width: 130
+                height: 44
+
+                background: Rectangle {
+                    radius: 22
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#6366F1" }
+                        GradientStop { position: 1.0; color: "#8B5CF6" }
+                    }
+                }
+
+                contentItem: Label {
+                    text: qsTr("Post")
+                    font.pixelSize: 15
+                    font.bold: true
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: newPostDialog.accept()
+            }
+
+            Item { Layout.fillWidth: true }
         }
     }
+
+    /* ---------------------- 逻辑部分 ---------------------- */
+
+    onOpened: {
+        titleField.focus = true
+        currentAuthor = rootwindow.currentUser
+    }
+
+    onRejected: {
+        titleField.text = ""
+        contentField.text = ""
+    }
+
     onAccepted: {
         if (titleField.text === "" || contentField.text === "") {
-            // use promptDialog to show the error
             promptDialog.show(qsTr("Validation Error"),
                               qsTr("Title and content cannot be empty."), null)
             return
-            // stop to add comment
         }
 
-        // send POST request to /new_post (not done yet)
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
@@ -135,53 +223,48 @@ Dialog {
                     try {
                         var response = JSON.parse(xhr.responseText)
                         if (response.code === 1) {
-                            // success
-                            // console.log("Post created successfully:", response.message)
-                            // clear input and close dialog
                             titleField.text = ""
                             contentField.text = ""
                             newPostDialog.close()
-                            // success prompt
-                            promptDialog.show(qsTr("Success"), qsTr("Post created successfully! " + response.message), null)
-                            // reload the post
+
+                            promptDialog.show(
+                                qsTr("Success"),
+                                qsTr("Post created successfully! ") + response.message,
+                                null
+                            )
+
                             loadPosts(selectedChannelId)
                         } else {
-                            console.error("Post creation failed:", response.message)
-                            promptDialog.show(qsTr("Error"), qsTr("Failed to create post: ") + response.message, null)
+                            promptDialog.show(
+                                qsTr("Error"),
+                                qsTr("Failed to create post: ") + response.message,
+                                null
+                            )
                         }
                     } catch (e) {
-                        console.error("Failed to parse response:", e)
-                        promptDialog.show(qsTr("Error"), qsTr("Invalid response format"), null)
+                        promptDialog.show(
+                            qsTr("Error"),
+                            qsTr("Invalid server response"),
+                            null
+                        )
                     }
                 } else {
-                    console.error("Post creation request failed:", xhr.status)
-                    promptDialog.show(qsTr("Error"), qsTr("Failed to create post: Network error"), null)
+                    promptDialog.show(
+                        qsTr("Error"),
+                        qsTr("Failed to create post: Network error"),
+                        null
+                    )
                 }
             }
         }
+
         xhr.open("POST", "http://sidtian.com:3000/new_post")
         xhr.setRequestHeader("Content-Type", "application/json")
-        var postData = JSON.stringify({
+        xhr.send(JSON.stringify({
             title: titleField.text,
             content: contentField.text,
             author: currentAuthor,
             channel_id: rootwindow.selectedChannelId
-        })
-        xhr.send(postData)
-        console.log("Sending new post request with title:", titleField.text)
-    }
-    onRejected: {
-        titleField.text = ""
-        contentField.text = ""
-    }
-    onOpened: {
-        titleField.focus = true
-        currentAuthor = rootwindow.currentUser
-    }
-    NumberAnimation on opacity {
-        from: 0
-        to: 1
-        duration: 200
-        easing.type: Easing.InOutQuad
+        }))
     }
 }

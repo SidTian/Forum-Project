@@ -20,40 +20,97 @@ Page {
                             })
     property ListModel commentModel: ListModel {}
     property bool isStarred: false
+
     // prompt dialog
     Dialog {
         id: promptDialog
         modal: true
-        standardButtons: Dialog.Ok
         anchors.centerIn: Overlay.overlay
-        width: 300
+        width: Math.min(480, implicitContentWidth + 80)
+        height: implicitContentHeight + (header ? header.height : 0) + 100
         parent: Overlay.overlay
 
         property string promptTitle: qsTr("Prompt")
         property string promptText: qsTr("Please take an action.")
         property var onAcceptedCallback: null
 
-        title: promptTitle
+        background: Rectangle {
+            color: "#FFFFFF"
+            radius: 20
+            border.width: 2
+            border.color: "#E2E8F0"
+        }
 
-        ColumnLayout {
+        header: Rectangle {
             width: parent.width
+            height: 80
+            color: "transparent"
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 24
+
+                Label {
+                    text: promptDialog.promptTitle
+                    font.pixelSize: 24
+                    font.bold: true
+                    color: "#1E293B"
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            anchors.margins: 24
 
             Label {
                 text: promptDialog.promptText
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
-                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: 17
+                color: "#334155"
             }
         }
 
-        onOpened: {
-            console.log("PromptDialog opened with title:", promptTitle,
-                        "text:", promptText)
-        }
+        footer: Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
 
-        onAccepted: {
-            if (onAcceptedCallback) {
-                onAcceptedCallback()
+            Button {
+                id: promptOkButton
+                text: qsTr("OK")
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                width: 130
+                height: 46
+
+                background: Rectangle {
+                    radius: 10
+                    color: parent.parent.hovered ? Qt.darker("#6366F1",
+                                                             1.1) : "#6366F1"
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150
+                        }
+                    }
+                }
+
+                contentItem: Label {
+                    text: promptOkButton.text
+                    font.pixelSize: 16
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    if (promptDialog.onAcceptedCallback) {
+                        promptDialog.onAcceptedCallback()
+                    }
+                    promptDialog.close()
+                }
             }
         }
 
@@ -398,7 +455,41 @@ Page {
                         Layout.fillWidth: true
                         spacing: 8
 
-                        // 可点击的作者名
+                        // 头像 + 点击进入用户页面
+                        Rectangle {
+                            width: 32
+                            height: 32
+                            radius: 16
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#6366F1" }
+                                GradientStop { position: 1.0; color: "#8B5CF6" }
+                            }
+
+                            Label {
+                                anchors.centerIn: parent
+                                text: postData.author && postData.author.length > 0
+                                      ? postData.author.charAt(0).toUpperCase()
+                                      : "?"
+                                color: "#FFFFFF"
+                                font.pixelSize: 16
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    console.log("Clicked avatar:", postData.author, "in post")
+                                    stackView.push("UserDetail.qml", {
+                                        "targetUsername": postData.author,
+                                        "currentUsername": rootwindow.currentUser || "",
+                                        "userId": rootwindow.userId || -1
+                                    })
+                                }
+                            }
+                        }
+
+                        // 可点击作者名
                         Text {
                             text: postData.author
                             font.pixelSize: 14
@@ -410,15 +501,12 @@ Page {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    console.log("Clicked author:",
-                                                postData.author, "in post")
-                                    stackView.push("qrc:/UserDetail.qml", {
-                                                       "targetUsername": postData.author,
-                                                       "currentUsername": rootwindow.currentUser
-                                                                          || "",
-                                                       "userId": rootwindow.userId
-                                                                 || -1
-                                                   })
+                                    console.log("Clicked author:", postData.author, "in post")
+                                    stackView.push("UserDetail.qml", {
+                                        "targetUsername": postData.author,
+                                        "currentUsername": rootwindow.currentUser || "",
+                                        "userId": rootwindow.userId || -1
+                                    })
                                 }
                             }
                         }
@@ -430,6 +518,7 @@ Page {
                             color: Material.secondaryTextColor
                         }
                     }
+
                     // content
                     Label {
                         text: postData.content
@@ -540,7 +629,7 @@ Page {
                                     onClicked: {
                                         console.log("Comment author clicked:",
                                                     model.author)
-                                        stackView.push("qrc:/UserDetail.qml", {
+                                        stackView.push("UserDetail.qml", {
                                                            "targetUsername": model.author,
                                                            "currentUsername": rootwindow.currentUser
                                                                               || "",
@@ -580,6 +669,12 @@ Page {
                 font.pixelSize: 14
                 Material.accent: Material.Blue
                 wrapMode: TextArea.Wrap
+
+                // 文字在输入框里垂直居中
+                padding: 0
+                topPadding: (height - font.pixelSize) / 2
+                bottomPadding: topPadding
+
                 background: Rectangle {
                     radius: 8
                     color: "#FFFFFF"
@@ -588,6 +683,7 @@ Page {
                     border.width: 1
                 }
             }
+
 
             // submit comment button
             Button {
