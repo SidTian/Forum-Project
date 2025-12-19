@@ -19,7 +19,7 @@ Dialog {
         Material.elevation: 6
     }
 
-    // 当前作者，从 rootwindow 传入
+
     property string currentAuthor: ""
 
     /* ---------------------- HEADER ---------------------- */
@@ -55,7 +55,6 @@ Dialog {
         }
     }
 
-    /* ---------------------- 中间内容：Title + Content + 按钮 ---------------------- */
     contentItem: ColumnLayout {
         anchors.leftMargin: 24
         anchors.rightMargin: 24
@@ -63,7 +62,7 @@ Dialog {
         anchors.bottomMargin: 16
         spacing: 20
 
-        // Title 区域
+
         ColumnLayout {
             spacing: 6
             Layout.fillWidth: true
@@ -94,7 +93,7 @@ Dialog {
             }
         }
 
-        // Content 独立卡片
+
         Rectangle {
             radius: 14
             color: "#FFFFFF"
@@ -197,7 +196,6 @@ Dialog {
         }
     }
 
-    /* ---------------------- 逻辑部分 ---------------------- */
 
     onOpened: {
         titleField.focus = true

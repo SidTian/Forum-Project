@@ -8,7 +8,6 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QQmlApplicationEngine engine;
 
-    // Qt 6 QML 模块路径
     const QUrl url(u"qrc:/qt/qml/Forum/Main.qml"_qs);
 
     QObject::connect(

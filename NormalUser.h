@@ -8,6 +8,6 @@ class NormalUser : public User
 public:
     explicit NormalUser(QObject* parent = nullptr) : User(parent) {}  // inline 实现
     QString role() const override { return "normal"; }
-    // 权限函数也可以 inline
+
     bool canDeleteAnyPost() const override { return false; }
 };

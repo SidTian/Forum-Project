@@ -466,9 +466,8 @@ Page {
                         wrapMode: Text.Wrap
                     }
                 Item {
-                    Layout.fillWidth: true        // 这行让它在 ColumnLayout 里占一整行宽度
-                    height: authorRow.height      // 高度跟里面那行一样高
-
+                    Layout.fillWidth: true
+                    height: authorRow.height
 
 
                     Row {
@@ -477,7 +476,7 @@ Page {
                         spacing: 8
 
 
-                        // 头像 + 点击进入用户页面
+
                         Rectangle {
                             width: 32
                             height: 32
@@ -511,11 +510,11 @@ Page {
                             }
                         }
 
-                        // 可点击作者名
+
                         Text {
                             text: postData.author
                             font.pixelSize: 20
-                            color: Material.accent // 蓝色高亮
+                            color: Material.accent
                             font.underline: mouseArea.containsMouse
                             MouseArea {
                                 id: mouseArea
@@ -533,7 +532,7 @@ Page {
                             }
                         }
 
-                        // 分隔符 + 时间（不可点击）
+
                         Text {
                             text: " | " + formatTime(postData.timestamp)
                             font.pixelSize: 18
@@ -561,7 +560,7 @@ Page {
                             id: starButton
                             text: isStarred ? "★ " + postData.star : "☆ " + postData.star
                             flat: true
-                            Material.foreground: isStarred ? "#FF9800" : Material.accent // 已赞橙色
+                            Material.foreground: isStarred ? "#FF9800" : Material.accent
                             font.pixelSize: 16
 
                             onClicked: {
@@ -694,7 +693,7 @@ Page {
                 Material.accent: Material.Blue
                 wrapMode: TextArea.Wrap
 
-                // 文字在输入框里垂直居中
+
                 padding: 0
                 topPadding: (height - font.pixelSize) / 2
                 bottomPadding: topPadding

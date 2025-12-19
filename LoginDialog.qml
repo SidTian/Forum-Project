@@ -74,10 +74,10 @@ Dialog {
             flat: true
             onClicked: {
                 isLoginMode = !isLoginMode
-                usernameField.text = "sidtian"
-                passwordField.text = "20020606"
-                confirmPasswordField.text = "20020606"
-                emailField.text = "test@test.test"
+                usernameField.text = ""
+                passwordField.text = ""
+                confirmPasswordField.text = ""
+                emailField.text = ""
                 errorLabel.text = ""
             }
         }

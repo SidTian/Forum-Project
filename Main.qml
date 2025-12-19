@@ -253,19 +253,28 @@ ApplicationWindow {
                     try {
                         var posts = JSON.parse(xhr.responseText)
                         postModel.clear()
+                        var isAdmin = (userRole === "Admin");
+
                         for (var i = 0; i < posts.length; i++) {
+                            var post = posts[i];
+
+
+                            if (!isAdmin && (post.is_locked === true || post.is_locked === 1)) {
+                                continue;
+                            }
+
                             postModel.append({
-                                                 "postId": posts[i].postId,
-                                                 "title": posts[i].title,
-                                                 "author": posts[i].author,
-                                                 "content": posts[i].content,
-                                                 "timestamp": posts[i].timestamp,
-                                                 "star": posts[i].star || 0,
-                                                 "comments": posts[i].comments
-                                                 || 0,
-                                                 "isLocked": posts[i].is_locked
-                                                 || false
-                                             })
+                                "postId": post.postId,
+                                "title": post.title,
+                                "author": post.author,
+                                "content": post.content,
+                                "timestamp": post.timestamp,
+                                "star": post.star || 0,
+                                "comments": post.comments || 0,
+                                "isLocked": post.is_locked || false,
+
+                                "index": postModel.count
+                            });
                         }
                     } catch (e) {
                         console.error("Failed to parse posts:", e)
@@ -309,11 +318,10 @@ ApplicationWindow {
                             console.log("Joined channel:", response.message)
                             promptDialog.show(qsTr("Success"),
                                               response.message, null)
-                        } else if(response.code === 2) {
+                        } else if (response.code === 2) {
                             promptDialog.show(qsTr("Error"),
                                               response.message, null)
-                        }
-                        else {
+                        } else {
                             console.error("Join failed:", response.message)
                             promptDialog.show(qsTr("Error"),
                                               response.message, null)
@@ -345,9 +353,13 @@ ApplicationWindow {
         xhr.onreadystatechange = function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
+
                     try {
                         var response = JSON.parse(xhr.responseText)
                         if (response.code === 1) {
+
+                            console.log("====================")
+                            console.log("success lock")
                             postModel.setProperty(index, "isLocked",
                                                   !currentLockState)
                             promptDialog.show(
@@ -368,20 +380,18 @@ ApplicationWindow {
         xhr.open("POST", "http://sidtian.com:3000/lock_post")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.send(JSON.stringify({
-                                    "postId": postId,
+                                    "postId": parseInt(postId),
                                     "username": username,
-                                    "isLocked": !currentLockState
+                                    "isLocked": !currentLockState,
+                                    "userId": parseInt(userId)
                                 }))
     }
 
     function formatTime(t) {
-        if (!t) return ""
-
-        // 去掉 T 和 Z
+        if (!t)
+            return ""
         let clean = t.replace("T", " ").replace("Z", "")
-
-        // 显示日期 + 时分
-        return clean.substring(0, 16)   // 例如：2025-12-06 23:17
+        return clean.substring(0, 16)
     }
 
     StackView {
@@ -595,17 +605,16 @@ ApplicationWindow {
                                         font.pixelSize: 10
                                         color: "#64748B"
                                     }
-                                    // 透明的点击区域，覆盖整个用户信息区域
+
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         hoverEnabled: true
                                         onClicked: {
-                                            stackView.push(
-                                                        "UserDetail.qml", {
-                                                            "userId": userId,
-                                                            "targetUsername": currentUser
-                                                        })
+                                            stackView.push("UserDetail.qml", {
+                                                               "userId": userId,
+                                                               "targetUsername": currentUser
+                                                           })
                                         }
                                     }
                                 }
@@ -872,6 +881,7 @@ ApplicationWindow {
                                 border.width: postMouseArea.containsMouse ? 2 : 1
                                 border.color: postMouseArea.containsMouse ? "#C7D2FE" : "#CBD5E1"
 
+
                                 ColumnLayout {
                                     anchors.fill: parent
                                     anchors.margins: 16
@@ -879,6 +889,7 @@ ApplicationWindow {
 
                                     RowLayout {
                                         spacing: 12
+
 
                                         Rectangle {
                                             width: 40
@@ -902,7 +913,6 @@ ApplicationWindow {
                                                 font.bold: true
                                                 color: "#FFFFFF"
                                             }
-
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
@@ -919,11 +929,15 @@ ApplicationWindow {
                                             }
                                         }
 
+
                                         ColumnLayout {
+                                            Layout.fillWidth: true
                                             spacing: 4
 
                                             RowLayout {
+                                                Layout.fillWidth: true
                                                 spacing: 6
+
                                                 Label {
                                                     text: model.title
                                                     font.pixelSize: 18
@@ -935,24 +949,74 @@ ApplicationWindow {
                                                     text: "🔒"
                                                     font.pixelSize: 16
                                                 }
+
+                                                Item {
+                                                    Layout.fillWidth: true
+                                                }
+
+
+                                                Item {
+                                                    visible: userRole === "admin"
+                                                    width: 86
+                                                    height: 32
+
+                                                    Rectangle {
+                                                        anchors.fill: parent
+                                                        radius: 8
+                                                        color: lockMouseArea.containsMouse ? "#E0E7FF" : "transparent"
+                                                        border.width: lockMouseArea.containsMouse ? 1 : 0
+                                                        border.color: "#6366F1"
+                                                    }
+
+                                                    Row {
+                                                        anchors.centerIn: parent
+                                                        spacing: 6
+                                                        Text {
+                                                            text: model.isLocked ? "🔓" : "🔒"
+                                                            font.pixelSize: 14
+                                                        }
+                                                        Text {
+                                                            text: model.isLocked ? "Unlock" : "Lock"
+                                                            font.pixelSize: 12
+                                                            color: "#6366F1"
+                                                        }
+                                                    }
+
+                                                    MouseArea {
+                                                        id: lockMouseArea
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+
+                                                        onClicked: {
+
+
+                                                            togglePostLock(
+                                                                        model.index,
+                                                                        model.isLocked,
+                                                                        model.postId,
+                                                                        currentUser)
+
+
+                                                        }
+                                                    }
+                                                }
                                             }
+
 
                                             RowLayout {
                                                 spacing: 4
-
                                                 Label {
                                                     text: "by "
                                                     font.pixelSize: 12
                                                     color: "#6B7280"
                                                 }
-
                                                 Label {
                                                     id: authorLabel
                                                     text: model.author
                                                     font.pixelSize: 12
                                                     color: "#6366F1"
                                                     font.underline: authorMouseArea.containsMouse
-
                                                     MouseArea {
                                                         id: authorMouseArea
                                                         anchors.fill: parent
@@ -969,15 +1033,16 @@ ApplicationWindow {
                                                         }
                                                     }
                                                 }
-
                                                 Label {
-                                                    text: " • " + formatTime(model.timestamp)
+                                                    text: " • " + formatTime(
+                                                              model.timestamp)
                                                     font.pixelSize: 12
                                                     color: "#6B7280"
                                                 }
                                             }
                                         }
                                     }
+
 
                                     Text {
                                         Layout.fillWidth: true
@@ -988,6 +1053,7 @@ ApplicationWindow {
                                         font.pixelSize: 14
                                         color: "#374151"
                                     }
+
 
                                     RowLayout {
                                         spacing: 12
@@ -1039,15 +1105,18 @@ ApplicationWindow {
                                     }
                                 }
 
+
                                 MouseArea {
                                     id: postMouseArea
+                                    anchors.top: parent.top
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    anchors.topMargin: 60
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     onClicked: {
-                                        console.log("Direct push, postId:",
-                                                    model.postId) // 确认触发
 
-                                        // 直接 push URL 字符串，Qt 内部异步加载 + 实例化
                                         stackView.push("PostDetails.qml", {
                                                            "postData": {
                                                                "title": model.title,

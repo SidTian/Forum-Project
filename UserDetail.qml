@@ -122,16 +122,16 @@ Page {
         }
     }
 
-    // 统一的关注/取消关注函数（超级好用！）
+
     function toggleFollow(targetUsername) {
         if (!rootwindow.isLoggedIn) {
             promptDialog.show("login required", "Please login first", () => {})
             return
         }
 
-        // 乐观更新：先改 UI
+
         const willFollow = !isFollowing
-        isFollowing = willFollow // 立即切换按钮状态
+        isFollowing = willFollow
 
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
@@ -140,7 +140,7 @@ Page {
                     try {
                         var response = JSON.parse(xhr.responseText)
                         if (response.code === 1) {
-                            // 成功！状态已经是对的，不需要再改
+
                             isFollowing = response.isFollowing
                             promptDialog.show(
                                         qsTr(willFollow ? "Follow Success" : "Unfollow Success"),
@@ -150,13 +150,13 @@ Page {
                         }
                     } catch (e) {
                         console.error("Follow request failed:", e)
-                        // 失败回滚
+
                         isFollowing = !willFollow
                         promptDialog.show(qsTr("Error"),
                                           e.message || "Operation failed", null)
                     }
                 } else {
-                    // 网络错误也回滚
+
                     isFollowing = !willFollow
                     promptDialog.show(qsTr("Error"), "Network error", null)
                 }
@@ -167,8 +167,8 @@ Page {
         xhr.setRequestHeader("Content-Type", "application/json")
         var data = JSON.stringify({
                                       "currentUserId": userId,
-                                      "targetUsername"// 必须传数字 ID
-                                      : targetUsername // 要关注/取消的人的用户名
+                                      "targetUsername"
+                                      : targetUsername
                                   })
         xhr.send(data)
 
@@ -176,7 +176,7 @@ Page {
                     willFollow ? "followed" : "unfollowed")
     }
 
-    // get user detail function（已完美适配最新后端）
+
     function loadUserDetails(targetUsername) {
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
@@ -185,19 +185,19 @@ Page {
                     try {
                         var response = JSON.parse(xhr.responseText)
 
-                        // 后端现在一定返回 code === 1 才表示成功
+
                         if (response.code !== 1) {
                             throw new Error(response.message || "Unknown error")
                         }
 
-                        // 更新用户信息
+
                         currentUsername = response.username || targetUsername
                         lastOnlineTime
                                 = response.lastOnlineTime ? formatTimestamp(
                                                                 response.lastOnlineTime) : "Unknown"
-                        isFollowing = !!response.isFollowing // 强制转为布尔值
+                        isFollowing = !!response.isFollowing
 
-                        // 清空并重新填充帖子模型
+
                         userPostsModel.clear()
 
                         if (response.posts && Array.isArray(response.posts)
@@ -214,7 +214,7 @@ Page {
                                                                      || "",
                                                           "timestamp": formatTimestamp(
                                                                            p.timestamp),
-                                                          "star"// 统一格式化时间
+                                                          "star"//
                                                           : p.star !== undefined ? p.star : 0,
                                                           "comments": p.comments !== undefined ? p.comments : 0,
                                                           "isLocked": p.isLocked
@@ -228,7 +228,7 @@ Page {
                                         currentUsername)
                         }
 
-                        // 强制刷新 ListView
+
                         userPostList.forceLayout()
                     } catch (e) {
                         console.error(
@@ -241,7 +241,7 @@ Page {
                                     null)
                     }
                 } else {
-                    // HTTP 非 200（比如 404 用户不存在、500 服务器错误）
+
                     var errMsg = xhr.responseText ? JSON.parse(
                                                         xhr.responseText).message : "Network error"
                     console.error("Failed to fetch user details:",
@@ -270,12 +270,12 @@ Page {
                     "Current:", currentUserName)
     }
 
-    // 可选：统一时间格式化函数（推荐放在全局或这个文件顶部）
+
     function formatTimestamp(mysqlTimestamp) {
         if (!mysqlTimestamp)
             return "Unknown"
         // mysqlTimestamp 可能是 "2025-11-21 19:09:52" 或 "2025-11-21T19:09:52.000Z"
-        var dt = new Date(mysqlTimestamp.replace(' ', 'T')) // 兼容两种格式
+        var dt = new Date(mysqlTimestamp.replace(' ', 'T'))
         if (isNaN(dt.getTime()))
             return mysqlTimestamp
         return Qt.formatDateTime(dt, "yyyy-MM-dd hh:mm:ss")
@@ -459,11 +459,11 @@ Page {
                         anchors.margins: 16
                         spacing: 10
 
-                        // 顶部：头像圆圈 + 标题 / 作者 / 时间
+
                         RowLayout {
                             spacing: 12
 
-                            // 头像圆圈和首页post一样风格
+
                             Rectangle {
                                 width: 40
                                 height: 40
@@ -502,7 +502,7 @@ Page {
                                 }
                             }
 
-                            // 标题 + 作者 + 时间
+
                             ColumnLayout {
                                 spacing: 4
 
@@ -567,7 +567,7 @@ Page {
                             }
                         }
 
-                        // 帖子内容摘要
+
                         Text {
                             Layout.fillWidth: true
                             text: model.content
@@ -578,7 +578,7 @@ Page {
                             elide: Text.ElideRight
                         }
 
-                        // 底部：star / comment 统计
+
                         RowLayout {
                             spacing: 12
 
@@ -612,7 +612,7 @@ Page {
                         }
                     }
 
-                    // 点击整张卡片进入帖子详情
+
                     MouseArea {
                         id: postMouseArea
                         anchors.fill: parent

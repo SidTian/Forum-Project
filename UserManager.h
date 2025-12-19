@@ -16,7 +16,7 @@ public:
 
     Q_INVOKABLE void login(const QString& id, const QString& name,
                            const QString& email, int posts, int stars,
-                           const QString& role);  // role 如 "normal", "channelAdmin", "admin"
+                           const QString& role);
 
     Q_INVOKABLE void logout();
 
@@ -29,5 +29,5 @@ private:
 
     static UserManager* m_instance;
     User* m_currentUser = nullptr;
-    UserFactory* m_factory = nullptr;  // 当前使用的工厂
+    UserFactory* m_factory = nullptr;
 };
