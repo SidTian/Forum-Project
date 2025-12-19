@@ -1,5 +1,6 @@
 // UserManager.cpp
 #include "UserManager.h"
+#include <QDateTime>
 
 UserManager* UserManager::m_instance = nullptr;
 
@@ -10,19 +11,53 @@ UserManager* UserManager::instance()
     return m_instance;
 }
 
-void UserManager::registerQmlTypes()
+UserManager::UserManager(QObject* parent) : QObject(parent)
 {
-    // qmlRegisterSingletonInstance("Forum", 1, 0, "User", UserManager::instance());
-    // 也可以直接用 contextProperty，下面 main.cpp 演示两种方式都行
-}
-
-UserManager::UserManager(QObject *parent)
-    : QObject(parent)
-{
-    m_currentUser = new User(this);
+    // not login state
+    m_factory = new NormalUserFactory();
+    m_currentUser = m_factory->createUser(this);
 }
 
 UserManager::~UserManager()
 {
-    // 单例一般不删，但 Qt 退出时会自动清理
+    delete m_currentUser;
+    delete m_factory;
+}
+
+void UserManager::login(const QString& id, const QString& name,
+                        const QString& email, int posts, int stars,
+                        const QString& role)
+{
+    // choose factory based on role
+    delete m_factory;
+    if (role == "admin")
+        m_factory = new AdminFactory();
+    else if (role == "channelAdmin")
+        m_factory = new ChannelAdminFactory();
+    else
+        m_factory = new NormalUserFactory();
+
+    // create new user
+    delete m_currentUser;
+    m_currentUser = m_factory->createUser(this);
+
+    // set property
+    m_currentUser->setUserId(id);
+    m_currentUser->setUsername(name);
+    m_currentUser->setEmail(email);
+    m_currentUser->setPosts(posts);
+    m_currentUser->setStars(stars);
+    m_currentUser->updateLastOnline();
+
+    emit currentUserChanged();
+}
+
+void UserManager::logout()
+{
+    delete m_currentUser;
+    delete m_factory;
+
+    m_factory = new NormalUserFactory();
+    m_currentUser = m_factory->createUser(this);
+    emit currentUserChanged();
 }

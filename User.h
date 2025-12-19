@@ -7,20 +7,19 @@
 class User : public QObject
 {
     Q_OBJECT
-
-    // 这些属性 QML 可以直接读取
-    Q_PROPERTY(QString userId      READ userId      WRITE setUserId      NOTIFY userIdChanged)
-    Q_PROPERTY(QString username    READ username    WRITE setUsername    NOTIFY usernameChanged)
-    Q_PROPERTY(QString email       READ email       WRITE setEmail       NOTIFY emailChanged)
-    Q_PROPERTY(int posts           READ posts       WRITE setPosts       NOTIFY postsChanged)
-    Q_PROPERTY(int stars           READ stars       WRITE setStars       NOTIFY starsChanged)
-    Q_PROPERTY(QDateTime lastOnline READ lastOnline WRITE setLastOnline NOTIFY lastOnlineChanged)
-    Q_PROPERTY(bool isLoggedIn     READ isLoggedIn                       NOTIFY loggedInStateChanged)
+    Q_PROPERTY(QString userId READ userId WRITE setUserId NOTIFY userIdChanged)
+    Q_PROPERTY(QString username READ username WRITE setUsername NOTIFY usernameChanged)
+    Q_PROPERTY(QString email READ email WRITE setEmail NOTIFY emailChanged)
+    Q_PROPERTY(int posts READ posts WRITE setPosts NOTIFY postsChanged)
+    Q_PROPERTY(int stars READ stars WRITE setStars NOTIFY starsChanged)
+    Q_PROPERTY(QDateTime lastOnline READ lastOnline NOTIFY lastOnlineChanged)
+    Q_PROPERTY(bool isLoggedIn READ isLoggedIn NOTIFY loggedInStateChanged)
+    Q_PROPERTY(QString role READ role CONSTANT)  // 角色由子类决定
 
 public:
-    explicit User(QObject *parent = nullptr);
+    explicit User(QObject* parent = nullptr);
 
-    // Getter
+    // 通用 getter
     QString userId() const { return m_userId; }
     QString username() const { return m_username; }
     QString email() const { return m_email; }
@@ -29,17 +28,28 @@ public:
     QDateTime lastOnline() const { return m_lastOnline; }
     bool isLoggedIn() const { return !m_userId.isEmpty(); }
 
-    // Setter（会自动通知 QML 刷新）
-    void setUserId(const QString &id);
-    void setUsername(const QString &name);
-    void setEmail(const QString &mail);
-    void setPosts(int count);
-    void setStars(int count);
+    // 添加这个声明（用于更新最后在线时间并发射信号）
     void setLastOnline(const QDateTime &dt);
 
-    // 方便的登录/登出
-    void login(const QString &id, const QString &name, const QString &mail = "", int posts = 0, int stars = 0);
+    // 添加这个声明（登录时设置所有属性）
+    void login(const QString &id, const QString &name,
+               const QString &mail = "", int posts = 0, int stars = 0);
     void logout();
+    // 权限接口（不同角色实现不同）
+    virtual bool canDeleteAnyPost() const { return false; }
+    virtual bool canBanUser() const { return false; }
+    virtual bool canManageChannel() const { return false; }
+
+    // 纯虚函数：每个子类必须实现自己的角色名
+    virtual QString role() const { return "normal"; }  // 默认普通用户
+
+    // setter
+    void setUserId(const QString& id);
+    void setUsername(const QString& name);
+    void setEmail(const QString& mail);
+    void setPosts(int count);
+    void setStars(int count);
+    void updateLastOnline();  // 登录时调用
 
 signals:
     void userIdChanged();
@@ -48,11 +58,11 @@ signals:
     void postsChanged();
     void starsChanged();
     void lastOnlineChanged();
-    void loggedInStateChanged();   // 登录状态变化
+    void loggedInStateChanged();
 
-private:
+protected:
     QString m_userId;
-    QString m_username = "游客";
+    QString m_username;
     QString m_email;
     int m_posts = 0;
     int m_stars = 0;

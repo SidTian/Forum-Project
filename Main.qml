@@ -374,6 +374,16 @@ ApplicationWindow {
                                 }))
     }
 
+    function formatTime(t) {
+        if (!t) return ""
+
+        // 去掉 T 和 Z
+        let clean = t.replace("T", " ").replace("Z", "")
+
+        // 显示日期 + 时分
+        return clean.substring(0, 16)   // 例如：2025-12-06 23:17
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
@@ -893,7 +903,6 @@ ApplicationWindow {
                                                 color: "#FFFFFF"
                                             }
 
-                                            // 添加点击事件
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
@@ -962,7 +971,7 @@ ApplicationWindow {
                                                 }
 
                                                 Label {
-                                                    text: " • " + model.timestamp
+                                                    text: " • " + formatTime(model.timestamp)
                                                     font.pixelSize: 12
                                                     color: "#6B7280"
                                                 }

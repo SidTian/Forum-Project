@@ -394,6 +394,18 @@ Page {
         // console.log("send request:", rootwindow.userId, postData.postId)
     }
 
+    // 时间格式化函数（去掉 T 和 Z）
+    function formatTime(t) {
+        if (!t) return ""
+
+        // 去掉 T 和 Z
+        let clean = t.replace("T", " ").replace("Z", "")
+
+        // 显示日期 + 时分
+        return clean.substring(0, 16)   // 例如：2025-12-06 23:17
+    }
+
+
     // call get_message function when get in the page
     Component.onCompleted: {
         get_message()
@@ -434,26 +446,36 @@ Page {
             // content in scroll view
             ScrollView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 200 // fixed height
+                Layout.preferredHeight: 250 // fixed height
                 clip: true
 
                 ColumnLayout {
                     width: contentLayout.width - 40
-                    spacing: 12
+                    spacing: 20
 
                     // title
                     Label {
                         text: postData.title
-                        font.pixelSize: 24
+                        font.pixelSize: 38
                         font.bold: true
-                        color: Material.primaryTextColor
+                        color: "#0F172A"
+                        //horizontalAlignment: Text.AlignLeft
+                        horizontalAlignment: Text.AlignHCenter
+                        padding: 4
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                     }
+                Item {
+                    Layout.fillWidth: true        // 这行让它在 ColumnLayout 里占一整行宽度
+                    height: authorRow.height      // 高度跟里面那行一样高
+
+
 
                     Row {
-                        Layout.fillWidth: true
+                        id: authorRow
+                        anchors.horizontalCenter: parent.horizontalCenter
                         spacing: 8
+
 
                         // 头像 + 点击进入用户页面
                         Rectangle {
@@ -492,7 +514,7 @@ Page {
                         // 可点击作者名
                         Text {
                             text: postData.author
-                            font.pixelSize: 14
+                            font.pixelSize: 20
                             color: Material.accent // 蓝色高亮
                             font.underline: mouseArea.containsMouse
                             MouseArea {
@@ -513,17 +535,19 @@ Page {
 
                         // 分隔符 + 时间（不可点击）
                         Text {
-                            text: qsTr(" | ") + postData.timestamp
-                            font.pixelSize: 14
+                            text: " | " + formatTime(postData.timestamp)
+                            font.pixelSize: 18
                             color: Material.secondaryTextColor
                         }
                     }
+                }
 
                     // content
                     Label {
                         text: postData.content
-                        font.pixelSize: 16
-                        color: Material.primaryTextColor
+                        font.pixelSize: 22
+                        color: "#334155"
+                        padding: 2
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                     }
@@ -613,7 +637,7 @@ Page {
 
                             Text {
                                 text: model.author || "Anonymous"
-                                font.pixelSize: 15
+                                font.pixelSize: 18
                                 font.bold: true
                                 color: Material.accent
                                 textFormat: Text.PlainText
@@ -642,7 +666,7 @@ Page {
 
                             Label {
                                 text: content
-                                font.pixelSize: 12
+                                font.pixelSize: 16
                                 color: Material.primaryTextColor
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
@@ -651,8 +675,8 @@ Page {
                             }
 
                             Label {
-                                text: timestamp
-                                font.pixelSize: 10
+                                text: formatTime(timestamp)
+                                font.pixelSize: 14
                                 color: Material.secondaryTextColor
                             }
                         }
